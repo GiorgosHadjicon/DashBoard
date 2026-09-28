@@ -85,8 +85,8 @@ td.n { font-variant-numeric: tabular-nums; }
 .tabs button { background: var(--surface); color: var(--muted); font-weight: 500; }
 .tabs button.on { background: var(--accent); color: var(--on-accent); font-weight: 600; }
 
-.meals { display: grid; grid-template-columns: 90px repeat(7, minmax(130px, 1fr)); gap: 6px; overflow-x: auto; padding-bottom: 6px; }
-.meals textarea { width: 100%; resize: vertical; min-height: 70px; font-size: .85rem; }
+.meals { display: grid; grid-template-columns: 90px repeat(7, minmax(190px, 1fr)); gap: 6px; overflow-x: auto; padding-bottom: 6px; }
+.meals textarea { width: 100%; resize: vertical; min-height: 200px; font-size: .8rem; line-height: 1.4; }
 .meals .h { font-weight: 600; color: var(--muted); font-size: .85rem; padding-top: 8px; }
 .meals .today { color: var(--accent); }
 

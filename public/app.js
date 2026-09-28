@@ -2,7 +2,7 @@ import { matchups, pct, csv, isoDate, daysUntil } from './logic.js';
 
 const main = document.getElementById('main');
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
+const MEALS = ['First meal (11–12)', 'Snack', 'Dinner']; // matches the printed plan's rows
 const todayName = () => DAYS[(new Date().getDay() + 6) % 7];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -75,7 +75,7 @@ views.today = async () => {
       <h3>Workout</h3>
       ${plan.filter((w) => w.day === day).map((w) => `<p>${esc(w.exercise)} <span class="muted">${esc(w.sets)}×${esc(w.reps)} at ${esc(w.weight)}kg</span></p>`).join('') || '<p class="muted">Rest day.</p>'}
       <h3>Food</h3>
-      ${eaten.map(([m, x]) => `<p><span class="muted">${m}</span> ${esc(x)}</p>`).join('') || '<p class="muted">No meals entered for today.</p>'}
+      ${eaten.map(([m, x]) => `<p><span class="muted">${m}</span> ${esc(x.split('\n').slice(0, 2).join(' · '))}</p>`).join('') || '<p class="muted">No meals entered for today.</p>'}
       <h3>Up next in MyFirstHack</h3>
       ${cur ? `<p><b>${esc(cur.title)}</b> <span class="muted">${cur.done}/${cur.days}</span></p>` : '<p class="muted">Roadmap complete.</p>'}
       <h3>One Piece</h3>
