@@ -4,10 +4,12 @@ import { mkdirSync } from 'node:fs';
 try { process.loadEnvFile('.env'); } catch { /* no .env yet: integrations will say so */ }
 const { garminToday } = await import('./lib/garmin.js');
 const { upcomingEvents } = await import('./lib/calendar.js');
+const { initCardsSchema, syncCards, searchCards, cardsMeta } = await import('./lib/cards.js');
 
 mkdirSync('data', { recursive: true });
 const db = new DatabaseSync('data/dashboard.db');
 db.exec('create table if not exists docs(id integer primary key, kind text not null, data text not null)');
+initCardsSchema(db);
 
 // One generic JSON-doc store for everything the user types in by hand.
 const KINDS = new Set(['deadline', 'deck', 'match', 'roadmap', 'meal', 'workout', 'lift']);
@@ -35,6 +37,18 @@ app.put('/api/docs/:kind/:id', (req, res) => {
 app.delete('/api/docs/:kind/:id', (req, res) => {
   db.prepare('delete from docs where id=? and kind=?').run(req.params.id, req.params.kind);
   res.status(204).end();
+});
+
+// One Piece card/leader data, cached locally so the deck builder doesn't hit optcgapi.com on every keystroke.
+app.get('/api/cards', (req, res) => res.json(searchCards(db, req.query)));
+app.get('/api/cards/meta', (req, res) => res.json(cardsMeta(db)));
+app.get('/api/cards/byId', (req, res) => {
+  const ids = String(req.query.ids || '').split(',').filter(Boolean);
+  if (!ids.length) return res.json([]);
+  res.json(db.prepare(`select * from cards where card_set_id in (${ids.map(() => '?').join(',')})`).all(...ids));
+});
+app.post('/api/cards/sync', async (req, res) => {
+  try { res.json(await syncCards(db)); } catch (e) { res.status(502).json({ error: e.message }); }
 });
 
 // External integrations: cached 10 min so tab-switching doesn't hammer Garmin/iCloud.

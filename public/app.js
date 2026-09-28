@@ -30,9 +30,37 @@ const notConnected = (e) => `<p class="muted">Not connected yet. ${esc(e.message
 // ---- state that survives re-renders
 let deckFilter = '';
 let decksOpen = false;
+let deckEditOpen = null;
 let workoutDay = todayName();
 let dietDay = todayName();
 let fitTab = 'workouts';
+let cardsReady = null; // null = unknown yet, else the cached card count
+let cardsSyncing = false;
+
+// ---- One Piece card data: local cache of cards looked up or picked, so re-renders don't refetch
+const cardCache = {};
+const cardImg = (c, cls = 'thumb') => (c?.image ? `<img class="${cls}" src="${esc(c.image)}" alt="">` : '');
+async function hydrateCards(ids) {
+  const need = [...new Set(ids.filter(Boolean))].filter((id) => !cardCache[id]);
+  if (!need.length) return;
+  for (const c of await fetch(`/api/cards/byId?ids=${need.join(',')}`).then((r) => r.json())) cardCache[c.card_set_id] = c;
+}
+const ensureCardsMeta = async () => { if (cardsReady === null) cardsReady = (await fetch('/api/cards/meta').then((r) => r.json())).count; return cardsReady; };
+
+let lastSearch = {}; // picker key -> last results, so a click on a result can look itself back up
+let searchTimer;
+// A type-ahead leader field. mode 'form': fills sibling inputs named `field` (text) and `field+'Id'` (hidden),
+// read when the enclosing form submits. mode 'save': picking one immediately PUTs it onto deck `deckId`.
+const leaderPicker = (key, { field, placeholder, current, mode = 'form', deckId } = {}) => `
+  <div class="picker" data-key="${key}" data-mode="${mode}" ${deckId ? `data-deckid="${deckId}"` : ''}>
+    <div class="pickerBox">${current ? cardImg(current) : ''}<input class="grow" ${mode === 'form' ? `name="${field}"` : ''} type="text"
+      placeholder="${placeholder}" value="${esc(current?.name ?? '')}" data-input="cardSearch" data-key="${key}" data-type="Leader" autocomplete="off" ${mode === 'form' ? 'required' : ''}></div>
+    ${mode === 'form' ? `<input type="hidden" name="${field}Id" value="${current?.card_set_id ?? ''}">` : ''}
+    <div class="pickerResults"></div>
+  </div>`;
+const deckAddPicker = (deckId) => `<div class="picker" data-key="deckadd-${deckId}">
+  <input class="grow" type="text" placeholder="Search cards to add to this deck…" data-input="deckCardSearch" data-key="deckadd-${deckId}" data-deckid="${deckId}" autocomplete="off">
+  <div class="pickerResults"></div></div>`;
 
 // ---- small shared pieces
 const hello = () => { const h = new Date().getHours(); return `${h < 5 ? 'Still up' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'}, ${NAME}`; };
@@ -180,6 +208,10 @@ views.fitness = async () => {
 
 views.optcg = async () => {
   const [decks, matches] = await Promise.all([list('deck'), list('match')]);
+  await Promise.all([ensureCardsMeta(), hydrateCards([
+    ...decks.map((d) => d.leaderCardId), ...matches.map((m) => m.oppCardId),
+    ...decks.flatMap((d) => (d.cards ?? []).map((c) => c.id)),
+  ])]);
   const shown = deckFilter ? matches.filter((m) => m.deckId == deckFilter) : matches;
   const rows = matchups(shown);
   const deckName = (id) => decks.find((d) => d.id == id)?.name ?? '(deleted deck)';
@@ -189,13 +221,32 @@ views.optcg = async () => {
     const c = p >= 55 ? 'var(--good)' : p < 45 ? 'var(--bad)' : 'var(--gold)';
     return `<td class="wr"><b>${p}%</b><small>${w}-${l}</small><i style="--w:${p}%;--c:${c}"></i></td>`;
   };
+  const leaderCell = (r) => `<td><div class="leadercell">${cardImg(cardCache[r.oppCardId], 'thumb sm')}<b>${esc(r.opp)}</b></div></td>`;
   const total = shown.filter((m) => m.result === 'W').length;
   const opts = decks.map((d) => `<option value="${d.id}" ${d.id == deckFilter ? 'selected' : ''}>${esc(d.name)}</option>`).join('');
-  return `<h2>One Piece TCG</h2>
+
+  const banner = cardsSyncing ? `<p class="banner">Syncing card data from optcgapi.com… about 20 seconds.</p>`
+    : !cardsReady ? `<p class="banner">No card data yet, so leaders and cards are typed by hand. <button class="ghost" data-click="syncCards">Sync card database</button></p>`
+    : `<p class="muted small">${cardsReady} cards cached from optcgapi.com <button class="ghost" data-click="syncCards">Resync</button></p>`;
+
+  const deckEditor = (d) => {
+    const cards = d.cards ?? [];
+    const filled = cards.reduce((n, c) => n + c.qty, 0);
+    return `<details class="fold" data-deckid="${d.id}" ${deckEditOpen === d.id ? 'open' : ''}><summary>Edit deck</summary>
+      ${!d.leaderCardId ? `<h4>Link a leader</h4>${leaderPicker(`leader-edit-${d.id}`, { mode: 'save', deckId: d.id, placeholder: 'Search for your leader…' })}` : ''}
+      <h4>Cards <span class="muted">${filled}/50</span></h4>
+      ${deckAddPicker(d.id)}
+      <ul class="list">${cards.map((c) => { const card = cardCache[c.id]; return `<li>${cardImg(card, 'thumb sm')}
+        <div class="grow"><b>${esc(card?.name ?? c.id)}</b>${card ? ` <span class="muted">${esc(card.color)} · cost ${esc(card.cost ?? '—')}</span>` : ''}</div>
+        <div class="stepper"><button class="ghost" data-click="deckCardStep" data-deckid="${d.id}" data-cardid="${c.id}" data-by="-1" aria-label="Remove one">−</button>
+        <span class="count">${c.qty}</span><button class="ghost" data-click="deckCardStep" data-deckid="${d.id}" data-cardid="${c.id}" data-by="1" aria-label="Add one">+</button></div></li>`; }).join('') || empty('No cards added yet.')}</ul>
+      </details>`;
+  };
+
+  return `<h2>One Piece TCG</h2>${banner}
   ${decks.length ? `<form class="row" data-submit="addMatch">
     <select name="deckId" required aria-label="Your deck">${opts}</select>
-    <input class="grow" name="opp" list="leaders" placeholder="Opponent's leader" required>
-    <datalist id="leaders">${[...new Set(matches.map((m) => m.opp.trim()))].map((o) => `<option value="${esc(o)}">`).join('')}</datalist>
+    ${leaderPicker('opp-match', { field: 'opp', placeholder: "Opponent's leader" })}
     <select name="first" aria-label="Turn order"><option value="first">Went 1st</option><option value="second">Went 2nd</option></select>
     <select name="result" aria-label="Result"><option value="W">Win</option><option value="L">Loss</option></select>
     <input name="notes" placeholder="Notes"><input type="hidden" name="date" value="${isoDate()}"><button>Log match</button></form>` : empty('Add your first deck below to start logging matches.')}
@@ -203,14 +254,15 @@ views.optcg = async () => {
     <div class="row"><select data-change="deckFilter" aria-label="Filter by deck"><option value="">All decks</option>${opts}</select>
     <span class="muted">${pct(total, shown.length - total) ?? '—'}% over ${shown.length} games</span><button class="ghost" data-click="csv">Download CSV</button></div></div>
   <table><tr><th>Opponent</th><th>Games</th><th>Overall</th><th>Going 1st</th><th>Going 2nd</th></tr>
-  ${rows.map((r) => `<tr><td><b>${esc(r.opp)}</b></td><td class="n">${r.w + r.l}</td>${cell(r.w, r.l)}${cell(r.fw, r.fl)}${cell(r.sw, r.sl)}</tr>`).join('') || '<tr><td colspan="5" class="muted">No matches for this deck yet.</td></tr>'}</table>
+  ${rows.map((r) => `<tr>${leaderCell(r)}<td class="n">${r.w + r.l}</td>${cell(r.w, r.l)}${cell(r.fw, r.fl)}${cell(r.sw, r.sl)}</tr>`).join('') || '<tr><td colspan="5" class="muted">No matches for this deck yet.</td></tr>'}</table>
   <h3>Recent matches</h3>
   <ul class="list">${shown.slice(-10).reverse().map((m) => `<li><b class="${m.result === 'W' ? 'good' : 'bad'}">${m.result === 'W' ? 'Win' : 'Loss'}</b>
-    <div class="grow">vs ${esc(m.opp)} <span class="muted">${esc(deckName(m.deckId))} · ${m.first === 'first' ? '1st' : '2nd'} · ${esc(m.date)} ${esc(m.notes)}</span></div>
+    ${cardImg(cardCache[m.oppCardId], 'thumb sm')}<div class="grow">vs ${esc(m.opp)} <span class="muted">${esc(deckName(m.deckId))} · ${m.first === 'first' ? '1st' : '2nd'} · ${esc(m.date)} ${esc(m.notes)}</span></div>
     <button class="x" data-click="del" data-kind="match" data-id="${m.id}" aria-label="Delete">×</button></li>`).join('')}</ul>` : ''}
   <details class="fold" ${decksOpen || !decks.length ? 'open' : ''}><summary>Your decks (${decks.length})</summary>
-    <form class="row" data-submit="addDeck"><input name="name" placeholder="Deck name" required><input class="grow" name="leader" placeholder="Leader (e.g. Red Luffy)" required><button>Add deck</button></form>
-    <ul class="list">${decks.map((d) => `<li><div class="grow"><b>${esc(d.name)}</b> <span class="muted">${esc(d.leader)}</span></div><button class="x" data-click="del" data-kind="deck" data-id="${d.id}" aria-label="Delete">×</button></li>`).join('')}</ul></details>`;
+    <form class="row" data-submit="addDeck"><input name="name" placeholder="Deck name" required>${leaderPicker('leader-new', { field: 'leader', placeholder: 'Search for your leader…' })}<button>Add deck</button></form>
+    <ul class="list">${decks.map((d) => `<li>${cardImg(cardCache[d.leaderCardId], 'thumb sm')}<div class="grow"><b>${esc(d.name)}</b> <span class="muted">${esc(d.leader)}</span></div>
+      <button class="x" data-click="del" data-kind="deck" data-id="${d.id}" aria-label="Delete">×</button>${deckEditor(d)}</li>`).join('')}</ul></details>`;
 };
 
 // Roadmap seeded from myfirsthack.com/roadmap (as of 2026-09-28); progress is edited by hand.
@@ -270,9 +322,80 @@ const actions = {
     if (el.dataset.kind === 'deck' && !confirm('Delete this deck? Its logged matches stay in the totals.')) return;
     return api('DELETE', el.dataset.kind, el.dataset.id);
   },
-  addDeck: async (f) => { decksOpen = true; await api('POST', 'deck', null, f); },
-  addMatch: (f) => api('POST', 'match', null, { ...f, deckId: +f.deckId }),
+  addDeck: async (f) => { decksOpen = true; await api('POST', 'deck', null, { name: f.name, leader: f.leader, leaderCardId: f.leaderId || undefined, cards: [] }); },
+  addMatch: (f) => api('POST', 'match', null, { deckId: +f.deckId, opp: f.opp, oppCardId: f.oppId || undefined, first: f.first, result: f.result, notes: f.notes, date: f.date }),
   deckFilter: (el) => { deckFilter = el.value; },
+  cardSearch: (el) => {
+    clearTimeout(searchTimer);
+    const picker = el.closest('.picker');
+    const hidden = picker.querySelector('input[type=hidden]');
+    if (hidden) hidden.value = ''; // typing invalidates a previously picked card
+    const results = picker.querySelector('.pickerResults');
+    const q = el.value.trim(), key = el.dataset.key, type = el.dataset.type;
+    if (q.length < 2) { results.innerHTML = ''; return; }
+    searchTimer = setTimeout(async () => {
+      const cards = await fetch(`/api/cards?type=${encodeURIComponent(type)}&q=${encodeURIComponent(q)}&limit=12`).then((r) => r.json());
+      lastSearch[key] = cards;
+      results.innerHTML = cards.map((c, i) => `<button type="button" class="pickerRow" data-click="pickCard" data-key="${key}" data-idx="${i}">
+        ${cardImg(c, 'thumb sm')}<span>${esc(c.name)}<small class="muted">${esc(c.set_id)} · ${esc(c.color)}</small></span></button>`).join('') || '<p class="pickerEmpty muted">No cards found.</p>';
+    }, 220);
+  },
+  pickCard: async (el) => {
+    const card = lastSearch[el.dataset.key]?.[+el.dataset.idx];
+    if (!card) return;
+    cardCache[card.card_set_id] = card;
+    const picker = document.querySelector(`.picker[data-key="${el.dataset.key}"]`);
+    if (picker.dataset.mode === 'save') {
+      const deck = get('deck', picker.dataset.deckid);
+      await api('PUT', 'deck', deck.id, { ...deck, leader: card.name, leaderCardId: card.card_set_id });
+      decksOpen = true; deckEditOpen = deck.id;
+    } else {
+      picker.querySelector('input[data-input=cardSearch]').value = card.name;
+      picker.querySelector('input[type=hidden]').value = card.card_set_id;
+    }
+    picker.querySelector('.pickerResults').innerHTML = '';
+    const box = picker.querySelector('.pickerBox');
+    box?.querySelector('img')?.remove();
+    box?.insertAdjacentHTML('afterbegin', cardImg(card));
+    return picker.dataset.mode === 'form' ? 'skip' : undefined; // form mode: don't wipe the rest of the form by re-rendering
+  },
+  deckCardSearch: (el) => {
+    clearTimeout(searchTimer);
+    const results = el.closest('.picker').querySelector('.pickerResults');
+    const q = el.value.trim(), key = el.dataset.key, deckId = el.dataset.deckid;
+    if (q.length < 2) { results.innerHTML = ''; return; }
+    searchTimer = setTimeout(async () => {
+      const cards = (await fetch(`/api/cards?q=${encodeURIComponent(q)}&limit=15`).then((r) => r.json())).filter((c) => c.type !== 'Leader');
+      lastSearch[key] = cards;
+      results.innerHTML = cards.map((c, i) => `<button type="button" class="pickerRow" data-click="addDeckCard" data-key="${key}" data-idx="${i}" data-deckid="${deckId}">
+        ${cardImg(c, 'thumb sm')}<span>${esc(c.name)}<small class="muted">${esc(c.set_id)} · ${esc(c.color)} · cost ${esc(c.cost ?? '—')}</small></span></button>`).join('') || '<p class="pickerEmpty muted">No cards found.</p>';
+    }, 220);
+  },
+  addDeckCard: async (el) => {
+    const card = lastSearch[el.dataset.key]?.[+el.dataset.idx];
+    if (!card) return;
+    cardCache[card.card_set_id] = card;
+    const deck = get('deck', el.dataset.deckid);
+    const cards = [...(deck.cards ?? [])];
+    const existing = cards.find((c) => c.id === card.card_set_id);
+    if (existing) existing.qty = Math.min(4, existing.qty + 1); else cards.push({ id: card.card_set_id, qty: 1 });
+    await api('PUT', 'deck', deck.id, { ...deck, cards });
+    decksOpen = true; deckEditOpen = deck.id;
+  },
+  deckCardStep: async (el) => {
+    const deck = get('deck', el.dataset.deckid);
+    const cards = (deck.cards ?? [])
+      .map((c) => (c.id === el.dataset.cardid ? { ...c, qty: c.qty + +el.dataset.by } : c))
+      .filter((c) => c.qty > 0);
+    await api('PUT', 'deck', deck.id, { ...deck, cards });
+    decksOpen = true; deckEditOpen = deck.id;
+  },
+  syncCards: async () => {
+    cardsSyncing = true; render();
+    try { cardsReady = (await fetch('/api/cards/sync', { method: 'POST' }).then((r) => r.json())).count; }
+    catch (e) { alert('Sync failed: ' + e.message); }
+    cardsSyncing = false;
+  },
   csv: () => {
     const all = Object.entries(cache).filter(([k]) => k.startsWith('match:')).map(([, v]) => v);
     const shown = deckFilter ? all.filter((m) => m.deckId == deckFilter) : all;
@@ -295,16 +418,27 @@ const actions = {
   logLift: (el) => logLift(get('workout', el.dataset.id)),
   refresh: async (el) => { await live(el.dataset.name, true).catch(() => {}); },
 };
-// meals save without re-rendering so typing focus isn't lost; everything else re-renders
-const keepDom = new Set(['saveMeal', 'csv']);
+// meals/searches save or update their own bit of DOM without a full re-render, so typing focus and
+// half-filled forms survive; everything else re-renders. An action can also return 'skip' itself.
+const keepDom = new Set(['saveMeal', 'csv', 'cardSearch', 'deckCardSearch']);
 
 const run = async (name, arg) => {
-  try { await actions[name](arg); } catch (e) { alert(e.message); }
-  if (!keepDom.has(name)) render();
+  let skip;
+  try { skip = await actions[name](arg); } catch (e) { alert(e.message); }
+  if (!keepDom.has(name) && skip !== 'skip') render();
 };
 main.addEventListener('click', (e) => { const t = e.target.closest('[data-click]'); if (t) run(t.dataset.click, t); });
 main.addEventListener('change', (e) => { const t = e.target.closest('[data-change]'); if (t) run(t.dataset.change, t); });
+main.addEventListener('input', (e) => { const t = e.target.closest('[data-input]'); if (t) run(t.dataset.input, t); });
 main.addEventListener('submit', (e) => { e.preventDefault(); run(e.target.dataset.submit, Object.fromEntries(new FormData(e.target))); });
+// close a picker's dropdown when focus leaves it without a pick
+main.addEventListener('focusout', (e) => {
+  const picker = e.target.closest('.picker');
+  if (!picker) return;
+  setTimeout(() => { if (!picker.contains(document.activeElement)) picker.querySelector('.pickerResults').innerHTML = ''; }, 150);
+});
+// 'toggle' doesn't bubble, but capture-phase delegation still sees it on the way down to <details>
+main.addEventListener('toggle', (e) => { const d = e.target.closest('details[data-deckid]'); if (d) deckEditOpen = d.open ? +d.dataset.deckid : null; }, true);
 
 // ---- shell
 const ICON = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;

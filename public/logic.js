@@ -1,11 +1,12 @@
 // Pure helpers, kept separate so test.js can run them under node.
 
-// match = { opp, first: 'first'|'second', result: 'W'|'L' } → one row per opponent leader
+// match = { opp, oppCardId?, first: 'first'|'second', result: 'W'|'L' } → one row per opponent leader
+// Grouped by oppCardId when a real card was picked, else by the typed name (case/space-insensitive).
 export function matchups(matches) {
   const rows = new Map();
   for (const m of matches) {
-    const key = m.opp.trim().toLowerCase();
-    const r = rows.get(key) ?? { opp: m.opp.trim(), w: 0, l: 0, fw: 0, fl: 0, sw: 0, sl: 0 };
+    const key = m.oppCardId || m.opp.trim().toLowerCase();
+    const r = rows.get(key) ?? { opp: m.opp.trim(), oppCardId: m.oppCardId, w: 0, l: 0, fw: 0, fl: 0, sw: 0, sl: 0 };
     const win = m.result === 'W';
     const side = m.first === 'first' ? 'f' : 's';
     r[win ? 'w' : 'l']++;

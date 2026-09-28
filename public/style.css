@@ -121,6 +121,26 @@ td.n { font-variant-numeric: tabular-nums; }
 .bar { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; flex-basis: 100%; }
 .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--gold)); }
 
+/* ---- card/leader picker: type-ahead with a results dropdown ---- */
+.banner { background: var(--surface2); border-radius: var(--r); padding: 12px 16px; margin-bottom: 18px; }
+.small { font-size: .85rem; }
+.thumb { width: 32px; height: 45px; object-fit: cover; border-radius: 4px; flex-shrink: 0; background: var(--surface2); }
+.thumb.sm { width: 26px; height: 36px; }
+.picker { position: relative; min-width: 200px; }
+.pickerBox { display: flex; align-items: center; gap: 8px; }
+.pickerBox input { width: 100%; }
+.pickerResults { position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; right: 0; max-height: 320px; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.pickerResults:empty { display: none; }
+.pickerRow { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; border-radius: 0; border-bottom: 1px solid var(--line); padding: 8px 12px; }
+.pickerRow:last-child { border-bottom: 0; }
+.pickerRow:hover { background: var(--surface2); }
+.pickerRow span { display: flex; flex-direction: column; }
+.pickerEmpty { padding: 10px 14px; margin: 0; }
+.leadercell { display: flex; align-items: center; gap: 8px; }
+li .picker { flex-basis: 100%; } /* inside a .list row: drop to its own line like .bar/.fold do */
+ul.list li > details.fold { flex-basis: 100%; margin: 10px 0 0; }
+
 /* ---- phones: tabs become a bottom bar ---- */
 @media (max-width: 760px) {
   .top { padding: 12px 16px; }
