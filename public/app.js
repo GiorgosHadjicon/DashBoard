@@ -483,10 +483,14 @@ const TABS = {
   roadmap: ['MyFirstHack', ICON('<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M6 16V9a3 3 0 0 1 3-3h7"/>')],
 };
 const tab = () => (views[location.hash.slice(1)] ? location.hash.slice(1) : 'today');
+const nav = document.getElementById('nav');
 async function render() {
-  document.getElementById('nav').innerHTML = Object.entries(TABS).map(([k, [label, icon]]) => `<a href="#${k}" class="${k === tab() ? 'on' : ''}">${icon}<span>${label}</span></a>`).join('');
+  nav.innerHTML = Object.entries(TABS).map(([k, [label, icon]]) => `<a href="#${k}" class="${k === tab() ? 'on' : ''}">${icon}<span>${label}</span></a>`).join('');
   try { main.innerHTML = await views[tab()](); } catch (e) { main.innerHTML = `<p class="bad">${esc(e.message)}</p>`; }
   if (toast) main.insertAdjacentHTML('afterbegin', `<p class="toast ${toast.kind}">${esc(toast.text)}</p>`);
 }
 addEventListener('hashchange', render);
+// Clicking the tab you're already on doesn't change location.hash, so no 'hashchange' fires and
+// the click looks like it did nothing — force a refresh in that one case (e.g. today's data going stale).
+nav.addEventListener('click', (e) => { const a = e.target.closest('a'); if (a && a.getAttribute('href').slice(1) === tab()) render(); });
 render();
