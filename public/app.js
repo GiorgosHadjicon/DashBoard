@@ -94,7 +94,7 @@ const agenda = (cal, days) => {
   if (cal instanceof Error) return notConnected(cal);
   const byDay = {};
   for (const e of cal) { const k = isoDate(new Date(e.start)); if (daysUntil(k) >= 0 && daysUntil(k) < days) (byDay[k] ??= []).push(e); }
-  return Object.entries(byDay).map(([k, es]) => `<div class="agenda"><h4>${dayLabel(k)}</h4>${es.map((e) => `<p><span class="time">${fmtTime(e)}</span>${esc(e.title)}${e.where ? ` <span class="muted">${esc(e.where)}</span>` : ''}</p>`).join('')}</div>`).join('') || empty('Nothing scheduled.');
+  return Object.entries(byDay).map(([k, es]) => `<div class="agenda"><h4>${dayLabel(k)}</h4>${es.map((e) => `<p><span class="time">${fmtTime(e)}</span>${e.kind ? `<span class="pill">${esc(e.kind)}</span>` : ''}${esc(e.title)}${e.where ? ` <span class="muted">${esc(e.where)}</span>` : ''}</p>`).join('')}</div>`).join('') || empty('Nothing scheduled.');
 };
 
 // ---- views
