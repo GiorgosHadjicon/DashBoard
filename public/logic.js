@@ -26,6 +26,37 @@ export function csv(rows) {
   return out.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
 }
 
+// Deck import/export as plain text, so a decklist can be copy-pasted in or out.
+// Format: "Leader: OP01-001 Name" then one "4x OP01-016 Name" line per card. The name is a comment —
+// only the card id and quantity are read back — so most community decklist formats parse too.
+const CARD_ID = /\b([A-Za-z]{2,5}\d{1,3}-\d{1,4})\b/;
+const QTY = /(\d+)\s*x\b|\bx\s*(\d+)|^(\d+)\b|\((\d+)\)/i;
+
+export function parseDeckText(text) {
+  let leaderId = null;
+  const counts = new Map();
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.replace(/#.*$|\/\/.*$/, '').trim();
+    if (!line) continue;
+    const id = line.match(CARD_ID)?.[1]?.toUpperCase();
+    if (!id) continue;
+    if (/^leader\b/i.test(line)) { leaderId = id; continue; }
+    const m = line.match(QTY);
+    const qty = Math.max(1, +(m?.[1] ?? m?.[2] ?? m?.[3] ?? m?.[4] ?? 1));
+    counts.set(id, (counts.get(id) ?? 0) + qty);
+  }
+  return { leaderId, cards: [...counts].map(([id, qty]) => ({ id, qty: Math.min(qty, 4) })) };
+}
+
+// lookup(id) => card row or undefined, for the optional name comment.
+export function buildDeckText(deck, lookup) {
+  const lines = [];
+  if (deck.leaderCardId) lines.push(`Leader: ${deck.leaderCardId} ${lookup(deck.leaderCardId)?.name ?? ''}`.trimEnd());
+  else if (deck.leader) lines.push(`Leader: ${deck.leader}`);
+  for (const { id, qty } of deck.cards ?? []) lines.push(`${qty}x ${id} ${lookup(id)?.name ?? ''}`.trimEnd());
+  return lines.join('\n');
+}
+
 // Local-date helpers (toISOString would give UTC and flip the day around midnight)
 export const isoDate = (d = new Date()) => new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
 export const daysUntil = (iso) => {

@@ -1,4 +1,4 @@
-import { matchups, pct, csv, isoDate, daysUntil } from './logic.js';
+import { matchups, pct, csv, isoDate, daysUntil, parseDeckText, buildDeckText } from './logic.js';
 
 const NAME = 'George';
 const main = document.getElementById('main');
@@ -68,6 +68,15 @@ const fmtTime = (e) => (e.allDay ? 'All day' : new Date(e.start).toLocaleTimeStr
 const dayLabel = (iso) => { const n = daysUntil(iso); return n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : new Date(iso + 'T00:00').toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' }); };
 const num = (v) => (v === '' || v == null ? 0 : +v);
 const empty = (msg) => `<p class="empty">${msg}</p>`;
+
+// A dismissable banner instead of alert() — alert() blocks the whole page (and browser automation) on a click.
+let toast = null;
+let toastTimer;
+const showToast = (text, kind = 'info') => {
+  toast = { text, kind };
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast = null; render(); }, 5000);
+};
 
 const dueBadge = (d) => {
   const n = daysUntil(d.due);
@@ -240,6 +249,11 @@ views.optcg = async () => {
         <div class="grow"><b>${esc(card?.name ?? c.id)}</b>${card ? ` <span class="muted">${esc(card.color)} · cost ${esc(card.cost ?? '—')}</span>` : ''}</div>
         <div class="stepper"><button class="ghost" data-click="deckCardStep" data-deckid="${d.id}" data-cardid="${c.id}" data-by="-1" aria-label="Remove one">−</button>
         <span class="count">${c.qty}</span><button class="ghost" data-click="deckCardStep" data-deckid="${d.id}" data-cardid="${c.id}" data-by="1" aria-label="Add one">+</button></div></li>`; }).join('') || empty('No cards added yet.')}</ul>
+      <h4>Import / export</h4>
+      <textarea class="deckText" data-deckid="${d.id}" spellcheck="false">${esc(buildDeckText(d, (id) => cardCache[id]))}</textarea>
+      <div class="row"><button type="button" class="ghost" data-click="copyDeckText" data-deckid="${d.id}">Copy to clipboard</button>
+      <button type="button" data-click="importDeckText" data-deckid="${d.id}">Import this text</button></div>
+      <p class="muted small">Paste a decklist above (one card per line, e.g. "4x OP01-016") and press Import. Importing replaces this deck's card list.</p>
       </details>`;
   };
 
@@ -390,10 +404,29 @@ const actions = {
     await api('PUT', 'deck', deck.id, { ...deck, cards });
     decksOpen = true; deckEditOpen = deck.id;
   },
+  copyDeckText: (el) => {
+    const ta = document.querySelector(`textarea.deckText[data-deckid="${el.dataset.deckid}"]`);
+    ta.select(); ta.setSelectionRange(0, 999999);
+    document.execCommand('copy');
+  },
+  importDeckText: async (el) => {
+    const deckId = +el.dataset.deckid;
+    const ta = document.querySelector(`textarea.deckText[data-deckid="${deckId}"]`);
+    const { leaderId, cards } = parseDeckText(ta.value);
+    if (!cards.length && !leaderId) return showToast('Nothing recognised in that text. Expected lines like "4x OP01-016".', 'error');
+    await hydrateCards([leaderId, ...cards.map((c) => c.id)]);
+    const unresolved = cards.filter((c) => !cardCache[c.id]).length;
+    const deck = get('deck', deckId);
+    const patch = { ...deck, cards };
+    if (leaderId && cardCache[leaderId]) { patch.leaderCardId = leaderId; patch.leader = cardCache[leaderId].name; }
+    await api('PUT', 'deck', deckId, patch);
+    decksOpen = true; deckEditOpen = deckId;
+    showToast(`Imported ${cards.length} card${cards.length === 1 ? '' : 's'}${leaderId && !cardCache[leaderId] ? ' — leader not found in the card database' : ''}${unresolved ? `, ${unresolved} card${unresolved === 1 ? '' : 's'} not found` : ''}.`);
+  },
   syncCards: async () => {
     cardsSyncing = true; render();
     try { cardsReady = (await fetch('/api/cards/sync', { method: 'POST' }).then((r) => r.json())).count; }
-    catch (e) { alert('Sync failed: ' + e.message); }
+    catch (e) { showToast('Sync failed: ' + e.message, 'error'); }
     cardsSyncing = false;
   },
   csv: () => {
@@ -420,11 +453,11 @@ const actions = {
 };
 // meals/searches save or update their own bit of DOM without a full re-render, so typing focus and
 // half-filled forms survive; everything else re-renders. An action can also return 'skip' itself.
-const keepDom = new Set(['saveMeal', 'csv', 'cardSearch', 'deckCardSearch']);
+const keepDom = new Set(['saveMeal', 'csv', 'cardSearch', 'deckCardSearch', 'copyDeckText']);
 
 const run = async (name, arg) => {
   let skip;
-  try { skip = await actions[name](arg); } catch (e) { alert(e.message); }
+  try { skip = await actions[name](arg); } catch (e) { showToast(e.message, 'error'); }
   if (!keepDom.has(name) && skip !== 'skip') render();
 };
 main.addEventListener('click', (e) => { const t = e.target.closest('[data-click]'); if (t) run(t.dataset.click, t); });
@@ -453,6 +486,7 @@ const tab = () => (views[location.hash.slice(1)] ? location.hash.slice(1) : 'tod
 async function render() {
   document.getElementById('nav').innerHTML = Object.entries(TABS).map(([k, [label, icon]]) => `<a href="#${k}" class="${k === tab() ? 'on' : ''}">${icon}<span>${label}</span></a>`).join('');
   try { main.innerHTML = await views[tab()](); } catch (e) { main.innerHTML = `<p class="bad">${esc(e.message)}</p>`; }
+  if (toast) main.insertAdjacentHTML('afterbegin', `<p class="toast ${toast.kind}">${esc(toast.text)}</p>`);
 }
 addEventListener('hashchange', render);
 render();

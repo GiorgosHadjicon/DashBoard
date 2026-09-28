@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { matchups, pct, csv, isoDate, daysUntil } from './public/logic.js';
+import { matchups, pct, csv, isoDate, daysUntil, parseDeckText, buildDeckText } from './public/logic.js';
 
 const m = (opp, first, result) => ({ opp, first, result });
 const rows = matchups([
@@ -21,4 +21,18 @@ assert.equal(byId.length, 1);
 assert.deepEqual(byId[0], { opp: 'red zoro', oppCardId: 'OP01-001', w: 1, l: 1, fw: 1, fl: 0, sw: 0, sl: 1 });
 assert.equal(daysUntil(isoDate()), 0);
 assert.equal(daysUntil(isoDate(new Date(Date.now() + 864e5))), 1);
+
+// deck import/export: several real-world-ish formats parse the same way, and clamps to 4 copies
+const parsed = parseDeckText(`
+  Leader: OP01-001 Roronoa Zoro
+  4x OP01-016 Nami
+  2 OP01-015 Tony Tony.Chopper  # comment
+  OP01-015 x3
+  5x OP99-999 Too Many Copies
+`);
+assert.equal(parsed.leaderId, 'OP01-001');
+assert.deepEqual(new Map(parsed.cards.map((c) => [c.id, c.qty])), new Map([['OP01-016', 4], ['OP01-015', 4 /* clamped from 2+3 */], ['OP99-999', 4 /* clamped from 5 */]]));
+const roundtrip = parseDeckText(buildDeckText({ leaderCardId: 'OP01-001', cards: [{ id: 'OP01-016', qty: 4 }] }, (id) => (id === 'OP01-001' ? { name: 'Zoro' } : undefined)));
+assert.equal(roundtrip.leaderId, 'OP01-001');
+assert.deepEqual(roundtrip.cards, [{ id: 'OP01-016', qty: 4 }]);
 console.log('ok');
