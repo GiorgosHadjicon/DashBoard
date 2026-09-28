@@ -35,6 +35,7 @@ h3 { margin: 28px 0 10px; font: 600 .95rem var(--body); color: var(--muted); }
 .week { display: flex; gap: 6px; }
 .week span { width: 34px; padding: 6px 0; text-align: center; border-radius: 8px; font-size: .8rem; color: var(--muted); border: 1px solid var(--line); }
 .week span.now { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+.tiles { margin: 18px 0 4px; }
 .today-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 36px; }
 .today-grid section p { margin: 0 0 8px; }
 .stat { display: flex; align-items: baseline; gap: 6px; }
@@ -43,6 +44,8 @@ h3 { margin: 28px 0 10px; font: 600 .95rem var(--body); color: var(--muted); }
 
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
 .tile { background: var(--surface); border-radius: 14px; padding: 16px 18px; border: 1px solid var(--line); }
+.tile { display: block; color: inherit; text-decoration: none; }
+a.tile:hover { border-color: var(--accent); }
 .tile b { display: block; font: 700 2.2rem var(--head); letter-spacing: -.02em; } .tile span { color: var(--muted); font-size: .85rem; }
 
 form.row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }

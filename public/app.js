@@ -34,23 +34,40 @@ let workoutDay = todayName();
 const views = {};
 
 views.today = async () => {
-  const [dl, meals, plan, cal, gar] = await Promise.all([
+  const [dl, meals, plan, cal, gar, road, matches, mail] = await Promise.all([
     list('deadline'), list('meal'), list('workout'),
     live('calendar').catch((e) => e), live('garmin').catch((e) => e),
+    roadmapItems(), list('match'), live('mail').catch((e) => e),
   ]);
   const day = todayName();
   const due = dl.filter((d) => !d.done).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 5);
   const todaysEvents = cal instanceof Error ? null : cal.filter((e) => isoDate(new Date(e.start)) === isoDate());
   const t = (e) => (e.allDay ? 'All day' : new Date(e.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  const week = dl.filter((d) => !d.done && daysUntil(d.due) <= 7).length;
+  const overdue = dl.filter((d) => !d.done && daysUntil(d.due) < 0).length;
+  const core = road.filter((i) => !i.phase.includes('coming soon')); // Phase 3 is pick-one, so it would inflate the total
+  const rDone = core.reduce((n, i) => n + i.done, 0), rAll = core.reduce((n, i) => n + i.days, 0);
+  const wins = matches.filter((m) => m.result === 'W').length;
+  const mu = matchups(matches).filter((r) => r.w + r.l >= 2);
+  const best = mu.sort((a, b) => pct(b.w, b.l) - pct(a.w, a.l))[0], worst = mu.at(-1);
+  const cur = road.find((i) => i.done < i.days);
   const eaten = MEALS.map((m) => [m, meals.find((x) => x.day === day && x.meal === m)?.text]).filter(([, x]) => x);
   return `<header class="hero"><div><p>${new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}</p><h1>${day}</h1></div>
     <div class="week">${DAYS.map((d) => `<span class="${d === day ? 'now' : ''}">${d.slice(0, 2)}</span>`).join('')}</div></header>
+  <div class="tiles">
+    <a class="tile" href="#deadlines"><b class="${overdue ? 'bad' : ''}">${week}</b><span>due in 7 days${overdue ? `, ${overdue} overdue` : ''}</span></a>
+    <a class="tile" href="#garmin"><b>${gar instanceof Error ? '—' : gar.steps ?? '—'}</b><span>steps today</span></a>
+    <a class="tile" href="#roadmap"><b>${Math.round((100 * rDone) / rAll)}%</b><span>MyFirstHack · ${rDone}/${rAll} days</span></a>
+    <a class="tile" href="#optcg"><b>${matches.length ? pct(wins, matches.length - wins) + '%' : '—'}</b><span>One Piece win rate · ${matches.length} games</span></a>
+  </div>
   <div class="today-grid">
     <div>
       <h3>Due soon</h3>
       <ul class="list">${due.map((d) => `<li><b>${esc(d.title)}</b> <span class="muted">${esc(d.course)}</span>${dueBadge(d)}</li>`).join('') || '<p class="muted">Nothing due. Add deadlines in the Deadlines tab.</p>'}</ul>
       <h3>On your calendar today</h3>
       ${cal instanceof Error ? notConnected(cal) : todaysEvents.map((e) => `<p><span class="time">${t(e)}</span> ${esc(e.title)}</p>`).join('') || '<p class="muted">Nothing scheduled.</p>'}
+      <h3>Important email</h3>
+      ${mail instanceof Error ? notConnected(mail) : mail.slice(0, 4).map((m) => `<p><b>${esc(m.from)}</b> <a href="${esc(m.link)}" target="_blank" rel="noopener">${esc(m.subject)}</a></p>`).join('') || '<p class="muted">Nothing important.</p>'}
     </div>
     <div>
       <h3>Body</h3>
@@ -59,6 +76,10 @@ views.today = async () => {
       ${plan.filter((w) => w.day === day).map((w) => `<p>${esc(w.exercise)} <span class="muted">${esc(w.sets)}×${esc(w.reps)} at ${esc(w.weight)}kg</span></p>`).join('') || '<p class="muted">Rest day.</p>'}
       <h3>Food</h3>
       ${eaten.map(([m, x]) => `<p><span class="muted">${m}</span> ${esc(x)}</p>`).join('') || '<p class="muted">No meals entered for today.</p>'}
+      <h3>Up next in MyFirstHack</h3>
+      ${cur ? `<p><b>${esc(cur.title)}</b> <span class="muted">${cur.done}/${cur.days}</span></p>` : '<p class="muted">Roadmap complete.</p>'}
+      <h3>One Piece</h3>
+      ${best ? `<p><span class="good">Best</span> vs ${esc(best.opp)} <span class="muted">${pct(best.w, best.l)}% over ${best.w + best.l}</span></p><p><span class="bad">Toughest</span> vs ${esc(worst.opp)} <span class="muted">${pct(worst.w, worst.l)}% over ${worst.w + worst.l}</span></p>` : '<p class="muted">Log a few matches to see your best and toughest match-ups.</p>'}
     </div>
   </div>`;
 };
@@ -169,12 +190,17 @@ const ROADMAP_SEED = [
   ['Phase 3 · Specialisation (coming soon)', 'GRC Analyst', 'Compliance, risk, audit', 30, 0],
 ];
 
-views.roadmap = async () => {
+const roadmapItems = async () => {
   let items = await list('roadmap');
   if (!items.length) {
     for (const [phase, title, sub, days, done] of ROADMAP_SEED) await api('POST', 'roadmap', null, { phase, title, sub, days, done });
     items = await list('roadmap');
   }
+  return items;
+};
+
+views.roadmap = async () => {
+  const items = await roadmapItems();
   const phases = [...new Set(items.map((i) => i.phase))];
   return `<h2>MyFirstHack roadmap</h2>
   ${phases.map((p) => { const its = items.filter((i) => i.phase === p); const done = its.reduce((s, i) => s + i.done, 0); const all = its.reduce((s, i) => s + i.days, 0);
