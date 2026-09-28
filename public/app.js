@@ -41,14 +41,25 @@ views.today = async () => {
   const day = todayName();
   const due = dl.filter((d) => !d.done).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 5);
   const todaysEvents = cal instanceof Error ? null : cal.filter((e) => isoDate(new Date(e.start)) === isoDate());
-  return `<h2>${day}, ${new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}</h2>
-  <div class="cols">
-    <div class="card"><h3>Next deadlines</h3>${due.map((d) => `<p><b>${esc(d.title)}</b> <span class="muted">${esc(d.course)}</span> ${dueBadge(d)}</p>`).join('') || '<p class="muted">Nothing due.</p>'}</div>
-    <div class="card"><h3>Calendar today</h3>${cal instanceof Error ? notConnected(cal)
-      : todaysEvents.map((e) => `<p>${e.allDay ? 'All day' : new Date(e.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${esc(e.title)}</p>`).join('') || '<p class="muted">Free day.</p>'}</div>
-    <div class="card"><h3>Meals</h3>${MEALS.map((m) => { const c = meals.find((x) => x.day === day && x.meal === m); return c?.text ? `<p><span class="muted">${m}</span> ${esc(c.text)}</p>` : ''; }).join('') || '<p class="muted">No meals entered for today.</p>'}</div>
-    <div class="card"><h3>Workout</h3>${plan.filter((w) => w.day === day).map((w) => `<p>${esc(w.exercise)} <span class="muted">${esc(w.sets)}×${esc(w.reps)} @ ${esc(w.weight)}kg</span></p>`).join('') || '<p class="muted">Rest day.</p>'}</div>
-    <div class="card"><h3>Garmin</h3>${gar instanceof Error ? notConnected(gar) : `<p>${gar.steps ?? '—'} steps · ${gar.sleepHours ?? '—'}h sleep · resting HR ${gar.restingHr ?? '—'}</p>`}</div>
+  const t = (e) => (e.allDay ? 'All day' : new Date(e.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  const eaten = MEALS.map((m) => [m, meals.find((x) => x.day === day && x.meal === m)?.text]).filter(([, x]) => x);
+  return `<header class="hero"><div><p>${new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}</p><h1>${day}</h1></div>
+    <div class="week">${DAYS.map((d) => `<span class="${d === day ? 'now' : ''}">${d.slice(0, 2)}</span>`).join('')}</div></header>
+  <div class="today-grid">
+    <div>
+      <h3>Due soon</h3>
+      <ul class="list">${due.map((d) => `<li><b>${esc(d.title)}</b> <span class="muted">${esc(d.course)}</span>${dueBadge(d)}</li>`).join('') || '<p class="muted">Nothing due. Add deadlines in the Deadlines tab.</p>'}</ul>
+      <h3>On your calendar today</h3>
+      ${cal instanceof Error ? notConnected(cal) : todaysEvents.map((e) => `<p><span class="time">${t(e)}</span> ${esc(e.title)}</p>`).join('') || '<p class="muted">Nothing scheduled.</p>'}
+    </div>
+    <div>
+      <h3>Body</h3>
+      ${gar instanceof Error ? notConnected(gar) : `<p class="stat"><b>${gar.steps ?? '—'}</b><span>steps</span></p><p class="stat"><b>${gar.sleepHours ?? '—'}h</b><span>sleep · resting HR ${gar.restingHr ?? '—'}</span></p>`}
+      <h3>Workout</h3>
+      ${plan.filter((w) => w.day === day).map((w) => `<p>${esc(w.exercise)} <span class="muted">${esc(w.sets)}×${esc(w.reps)} at ${esc(w.weight)}kg</span></p>`).join('') || '<p class="muted">Rest day.</p>'}
+      <h3>Food</h3>
+      ${eaten.map(([m, x]) => `<p><span class="muted">${m}</span> ${esc(x)}</p>`).join('') || '<p class="muted">No meals entered for today.</p>'}
+    </div>
   </div>`;
 };
 
@@ -111,7 +122,12 @@ views.optcg = async () => {
   const shown = deckFilter ? matches.filter((m) => m.deckId == deckFilter) : matches;
   const rows = matchups(shown);
   const deckName = (id) => decks.find((d) => d.id == id)?.name ?? '(deleted deck)';
-  const cell = (w, l) => { const p = pct(w, l); return `<td class="n ${p == null ? 'muted' : p >= 55 ? 'good' : p < 45 ? 'bad' : ''}">${p == null ? '—' : p + '%'} <span class="muted">(${w}-${l})</span></td>`; };
+  const cell = (w, l) => {
+    const p = pct(w, l);
+    if (p == null) return '<td class="wr muted">—</td>';
+    const c = p >= 55 ? 'var(--good)' : p < 45 ? 'var(--bad)' : 'var(--gold)';
+    return `<td class="wr"><b>${p}%</b><small>${w}-${l}</small><i style="--w:${p}%;--c:${c}"></i></td>`;
+  };
   const total = shown.filter((m) => m.result === 'W').length;
   return `<h2>One Piece TCG</h2>
   <h3>Decks</h3>
