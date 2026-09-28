@@ -3,12 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "scripts": { "start": "node server.js", "test": "node test.js" },
-  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
   "dependencies": {
     "express": "^5.1.0",
     "garmin-connect": "^1.6.2",
-    "imapflow": "^2.1.1",
     "node-ical": "^0.27.2",
     "tsdav": "^2.1.0"
   }
