@@ -18,3 +18,7 @@ Binds to 127.0.0.1 only and has no auth. Add auth before hosting it anywhere.
 | Garmin | `garmin-connect` (unofficial), tokens cached in `data/garmin-tokens` |
 | Calendar | iCloud CalDAV + Apple app-specific password |
 | Email | IMAP + Gmail search string in `GMAIL_QUERY` |
+
+## TCD email
+`hadjicog@tcd.ie` is Microsoft 365 (no app-password IMAP). In Outlook on the web: Settings → Mail → Rules → add a rule
+"apply to all messages" → forward to your Gmail. If TCD blocks external forwarding, this tab can't see TCD mail.
