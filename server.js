@@ -4,7 +4,6 @@ import { mkdirSync } from 'node:fs';
 try { process.loadEnvFile('.env'); } catch { /* no .env yet: integrations will say so */ }
 const { garminToday } = await import('./lib/garmin.js');
 const { upcomingEvents } = await import('./lib/calendar.js');
-const { importantMail } = await import('./lib/mail.js');
 
 mkdirSync('data', { recursive: true });
 const db = new DatabaseSync('data/dashboard.db');
@@ -38,7 +37,7 @@ app.delete('/api/docs/:kind/:id', (req, res) => {
   res.status(204).end();
 });
 
-// External integrations: cached 10 min so tab-switching doesn't hammer Garmin/iCloud/Gmail.
+// External integrations: cached 10 min so tab-switching doesn't hammer Garmin/iCloud.
 const cache = new Map();
 const live = (name, fn) => app.get(`/api/${name}`, async (req, res) => {
   const hit = cache.get(name);
@@ -51,7 +50,6 @@ const live = (name, fn) => app.get(`/api/${name}`, async (req, res) => {
 });
 live('garmin', garminToday);
 live('calendar', upcomingEvents);
-live('mail', importantMail);
 
 // 127.0.0.1 only: no auth, and .env holds your logins. Add auth before hosting it anywhere.
 const port = process.env.PORT || 3000;
