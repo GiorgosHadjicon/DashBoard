@@ -5,7 +5,7 @@ try { process.loadEnvFile('.env'); } catch { /* no .env yet: integrations will s
 const { garminToday } = await import('./lib/garmin.js');
 const { upcomingEvents } = await import('./lib/calendar.js');
 const { initCardsSchema, syncCards, searchCards, cardsMeta } = await import('./lib/cards.js');
-const { extractText } = await import('./lib/cvImport.js');
+const { extractText, docxToStyledHtml } = await import('./lib/cvImport.js');
 
 mkdirSync('data', { recursive: true });
 const db = new DatabaseSync('data/dashboard.db');
@@ -64,8 +64,12 @@ app.post('/api/cards/sync', async (req, res) => {
 app.post('/api/cv/extract', async (req, res) => {
   const { filename, base64 } = req.body ?? {};
   if (!filename || !base64) return res.status(400).json({ error: 'filename and base64 required' });
-  try { res.json({ text: await extractText(Buffer.from(base64, 'base64'), filename) }); }
-  catch (e) { res.status(422).json({ error: e.message }); }
+  const buffer = Buffer.from(base64, 'base64');
+  try {
+    const text = await extractText(buffer, filename);
+    const styledHtml = filename.toLowerCase().endsWith('.docx') ? await docxToStyledHtml(buffer) : null;
+    res.json({ text, styledHtml });
+  } catch (e) { res.status(422).json({ error: e.message }); }
 });
 
 // External integrations: cached 10 min so tab-switching doesn't hammer Garmin/iCloud.

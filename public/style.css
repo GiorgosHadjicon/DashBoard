@@ -173,12 +173,16 @@ ul.list li > details.fold { flex-basis: 100%; margin: 10px 0 0; }
 .cv-page h2 { font-family: var(--body); font-size: .9rem; text-transform: uppercase; letter-spacing: .06em; color: #5b6f8a; border-bottom: 1px solid #dbe4f0; padding-bottom: 6px; margin: 28px 0 12px; }
 .cv-page ul { margin: 0 0 10px; padding-left: 20px; }
 .cv-page li { margin-bottom: 4px; }
+/* The imported .docx rendered by macOS's own docx reader (real fonts/colours) — isolated in an
+   iframe so its own stylesheet can't leak onto the rest of the page. Height is set from JS once
+   loaded (onload= in app.js), since content length isn't known ahead of time. */
+.cv-original-frame { display: block; width: 100%; max-width: 760px; border: 0; border-radius: var(--r); background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 0 1px var(--line); }
 
 @media print {
   .no-print, .top { display: none !important; }
   body { background: #fff; }
   main { padding: 0; max-width: 100%; }
-  .cv-page { box-shadow: none; padding: 0; max-width: 100%; }
+  .cv-page, .cv-original-frame { box-shadow: none; padding: 0; max-width: 100%; }
 }
 
 /* ---- phones: tabs become a bottom bar ---- */

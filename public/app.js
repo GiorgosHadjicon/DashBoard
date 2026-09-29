@@ -356,6 +356,9 @@ let cvEditing = false;
 // simplified #/##/- version (no fonts, colours or layout survive that), so this is what lets "view
 // the original" mean the *actual* file, opened in Word/Preview/whatever made it, not our guess at it.
 let pendingOriginal = null;
+// A .docx import also gets a real rendering from macOS's own docx reader (see lib/cvImport.js) —
+// kept alongside the plain text so view mode can show actual fonts/colours instead of our own CSS.
+let pendingStyledHtml = null;
 const CV_MIME = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', txt: 'text/plain', md: 'text/markdown' };
 const cvOriginalBlobUrl = (doc) => {
   const { name, base64 } = doc.original;
@@ -395,6 +398,7 @@ function readCvFile(file) {
     reader.onload = () => {
       setCv(autoFormatCv(reader.result));
       pendingOriginal = { name: file.name, base64: btoa(unescape(encodeURIComponent(reader.result))) };
+      pendingStyledHtml = null;
     };
     reader.readAsText(file);
     return;
@@ -404,13 +408,14 @@ function readCvFile(file) {
   reader.onload = async () => {
     const base64 = reader.result.split(',')[1];
     try {
-      const { text, error } = await fetch('/api/cv/extract', {
+      const { text, styledHtml, error } = await fetch('/api/cv/extract', {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ filename: file.name, base64 }),
       }).then((r) => r.json());
       if (error) throw new Error(error);
       setCv(text); // already auto-formatted server-side (lib/cvImport.js)
       pendingOriginal = { name: file.name, base64 };
+      pendingStyledHtml = styledHtml ?? null; // docx only; null clears any previous import's rendering
     } catch (e) { showToast(e.message, 'error'); }
   };
   reader.readAsDataURL(file);
@@ -436,9 +441,9 @@ views.cv = async () => {
   return `<h2 class="no-print">CV</h2>
   <div class="row no-print"><button class="ghost" data-click="editCv">Edit</button><button data-click="printCv">Print / Save as PDF</button>
   ${doc.original ? `<button class="ghost" data-click="viewCvOriginal" data-id="${doc.id}">View original (${esc(doc.original.name)})</button>` : ''}</div>
-  ${doc.original ? `<p class="muted small no-print">This page is a simplified read of your CV — fonts, colours and exact layout don't survive that.
-  The button above gets you the ${esc(doc.original.name)} file exactly as imported.</p>` : ''}
-  <div class="cv-page">${cvHtml(doc.text)}</div>`;
+  ${doc.styledHtml
+    ? `<iframe class="cv-original-frame" sandbox="allow-same-origin" srcdoc="${esc(doc.styledHtml)}" onload="this.style.height=(this.contentDocument.documentElement.scrollHeight+24)+'px'"></iframe>`
+    : `<div class="cv-page">${cvHtml(doc.text)}</div>`}`;
 };
 
 // ---- actions (wired by data-* attributes via three delegated listeners)
@@ -559,7 +564,7 @@ const actions = {
   bump: (el) => { const i = get('roadmap', el.dataset.id); return api('PUT', 'roadmap', i.id, { ...i, done: Math.min(i.days, Math.max(0, i.done + +el.dataset.by)) }); },
   addRoadmap: (f) => api('POST', 'roadmap', null, { ...f, days: Math.max(1, num(f.days)), done: 0 }),
   editCv: () => { cvEditing = true; },
-  cancelCv: () => { cvEditing = false; pendingOriginal = null; },
+  cancelCv: () => { cvEditing = false; pendingOriginal = null; pendingStyledHtml = null; },
   cvCmd: (el) => {
     const area = document.getElementById('cvEdit');
     area.focus();
@@ -572,9 +577,12 @@ const actions = {
     const doc = (await list('cv'))[0];
     const text = htmlToCvText(document.getElementById('cvEdit'));
     const original = pendingOriginal ?? doc?.original; // keep the existing original file unless this save just imported a new one
-    await (doc ? api('PUT', 'cv', doc.id, { text, original }) : api('POST', 'cv', null, { text, original }));
+    // same deal: only a fresh docx import brings a new rendering; editing text by hand doesn't touch it
+    const styledHtml = pendingOriginal ? pendingStyledHtml : (doc?.styledHtml ?? null);
+    await (doc ? api('PUT', 'cv', doc.id, { text, original, styledHtml }) : api('POST', 'cv', null, { text, original, styledHtml }));
     cvEditing = false;
     pendingOriginal = null;
+    pendingStyledHtml = null;
   },
   viewCvOriginal: (el) => {
     const url = cvOriginalBlobUrl(get('cv', el.dataset.id));

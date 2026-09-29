@@ -34,7 +34,7 @@ npm test               # runs the logic.js test suite (node:assert, no framework
 | **Fitness** | Three panels: **Workouts** (weights with +/− steppers and a progress history), **Diet** (a per-day meal plan), **Garmin** (steps, sleep, resting heart rate, recent activities) | typed in (Workouts, Diet) · Garmin Connect (Garmin), auto-refreshed hourly |
 | **One Piece** | Deck builder with real leader/card data (search, thumbnails, import/export as text) and a match-up tracker (win % overall, going 1st, going 2nd, per opponent leader) | typed in + [optcgapi.com](https://optcgapi.com)'s card database |
 | **MyFirstHack** | A roadmap of the course, seeded from its site, with per-module progress bars | seeded once, then edited by hand |
-| **CV** | Edit like a normal document — select text, click Bold/Heading/List, no typed syntax — then print/save-as-PDF; import an existing one (`.txt`, `.md`, `.pdf`, `.docx`) by picking or dragging it in | typed in, or imported |
+| **CV** | Edit like a normal document — select text, click Bold/Heading/List, no typed syntax — then print/save-as-PDF; import an existing one (`.txt`, `.md`, `.pdf`, `.docx`) by picking or dragging it in. A `.docx` import is shown with its real fonts/colours/spacing, not our own styling | typed in, or imported |
 
 The calendar isn't a separate tab — it's folded into Today's "Next 7 days" agenda, merged from every
 source you've configured (iCloud calendars + any `ICS_FEEDS`).

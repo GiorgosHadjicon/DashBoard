@@ -79,25 +79,34 @@ edit mode renders `cvHtml()` into a `contenteditable` div with a Bold/Title/Head
 (native `document.execCommand`, no editor dependency), and `htmlToCvText()` (`public/app.js`) walks
 the edited DOM back into this same `#`/`##`/`-`/`**bold**` syntax on save. `original`, present only
 after a PDF/DOCX/TXT/MD import, keeps the actual uploaded file (base64) so "View original" can open
-the exact file — fonts, colours and layout the simplified `text` rendering can't keep
+the exact file — fonts, colours and layout the simplified `text` rendering can't keep. `styledHtml`,
+present only after a `.docx` import, is a real rendering of that file from macOS's own docx reader
+(`docxToStyledHtml()` in `lib/cvImport.js`, via `textutil`) — view mode shows this in a sandboxed
+`<iframe srcdoc>` instead of `cvHtml(text)` when it's there, so the CV tab shows actual fonts/colours,
+not our own CSS. `text`/`htmlToCvText()` stays the thing that's actually edited and stored; `styledHtml`
+only ever comes from a fresh `.docx` import (editing by hand doesn't touch it, and it's dropped again
+by a later `.txt`/`.md`/`.pdf` import)
 ```jsonc
 {
   "text": "# Jane Doe\nyou@example.com\n\n## Education\n**Trinity College Dublin** — BA…",
-  "original": { "name": "Jane Doe CV.docx", "base64": "UEsDBBQABgAI…" }
+  "original": { "name": "Jane Doe CV.docx", "base64": "UEsDBBQABgAI…" },
+  "styledHtml": "<!DOCTYPE html><html><head><style>p.p1{font:12px Helvetica…}</style></head><body>…</body></html>"
 }
 ```
 
 ### CV import — `POST /api/cv/extract`
 
 Pulls plain text out of an uploaded PDF or Word file (see `lib/cvImport.js`, via `pdf-parse` and
-`mammoth`). `.txt`/`.md` never reach this — the browser reads those itself with `FileReader`, no
-round trip needed.
+`mammoth`), and — for a `.docx` only — also a styled HTML rendering of it via macOS's `textutil`
+(`docxToStyledHtml()`). `.txt`/`.md` never reach this — the browser reads those itself with
+`FileReader`, no round trip needed. `textutil` is macOS-only and best-effort: if it's missing or
+chokes on the file, `styledHtml` just comes back `null` and the import still succeeds with `text`.
 
 ```jsonc
 // request
 { "filename": "cv.pdf", "base64": "JVBERi0xLjQK…" }  // the whole file, base64-encoded
 // response
-{ "text": "Jane Doe\nyou@example.com\n…" }  // plain text only — headings/bullets/bold don't survive
+{ "text": "Jane Doe\nyou@example.com\n…", "styledHtml": "<!DOCTYPE html>…" }  // styledHtml is null for a .pdf, or if textutil failed
 ```
 
 `400` if `filename`/`base64` is missing, `422` with `{ "error": "Unsupported file type: …" }` for
