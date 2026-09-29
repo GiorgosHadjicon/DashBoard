@@ -352,26 +352,36 @@ let cvEditing = false;
 
 // .txt/.md are read directly in the browser; .pdf/.docx need real parsing, so those go to the server
 // (base64 in the request body — no multipart upload plumbing needed for one small file).
+// The imported file itself, kept alongside the auto-formatted text — the app only ever renders a
+// simplified #/##/- version (no fonts, colours or layout survive that), so this is what lets "view
+// the original" mean the *actual* file, opened in Word/Preview/whatever made it, not our guess at it.
+let pendingOriginal = null;
+
 function readCvFile(file) {
   if (!file) return;
   const setCv = (text) => { const ta = document.querySelector('textarea[name=text]'); if (ta) ta.value = text; };
   const ext = file.name.toLowerCase().split('.').pop();
   if (ext === 'txt' || ext === 'md') {
     const reader = new FileReader();
-    reader.onload = () => setCv(autoFormatCv(reader.result));
+    reader.onload = () => {
+      setCv(autoFormatCv(reader.result));
+      pendingOriginal = { name: file.name, base64: btoa(unescape(encodeURIComponent(reader.result))) };
+    };
     reader.readAsText(file);
     return;
   }
   if (ext !== 'pdf' && ext !== 'docx') return showToast(`Can't read .${ext} files — try .txt, .md, .pdf or .docx.`, 'error');
   const reader = new FileReader();
   reader.onload = async () => {
+    const base64 = reader.result.split(',')[1];
     try {
       const { text, error } = await fetch('/api/cv/extract', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, base64: reader.result.split(',')[1] }),
+        body: JSON.stringify({ filename: file.name, base64 }),
       }).then((r) => r.json());
       if (error) throw new Error(error);
       setCv(text); // already auto-formatted server-side (lib/cvImport.js)
+      pendingOriginal = { name: file.name, base64 };
     } catch (e) { showToast(e.message, 'error'); }
   };
   reader.readAsDataURL(file);
@@ -391,7 +401,10 @@ views.cv = async () => {
       A PDF/DOCX import brings in the words, not the formatting — mark up the headings and bullets afterward.</p>
     </form>`;
   return `<h2 class="no-print">CV</h2>
-  <div class="row no-print"><button class="ghost" data-click="editCv">Edit</button><button data-click="printCv">Print / Save as PDF</button></div>
+  <div class="row no-print"><button class="ghost" data-click="editCv">Edit</button><button data-click="printCv">Print / Save as PDF</button>
+  ${doc.original ? `<button class="ghost" data-click="downloadCvOriginal" data-id="${doc.id}">Download original (${esc(doc.original.name)})</button>` : ''}</div>
+  ${doc.original ? `<p class="muted small no-print">This page is a simplified read of your CV — fonts, colours and exact layout don't survive that.
+  The button above gets you the ${esc(doc.original.name)} file exactly as imported.</p>` : ''}
   <div class="cv-page">${cvHtml(doc.text)}</div>`;
 };
 
@@ -513,11 +526,19 @@ const actions = {
   bump: (el) => { const i = get('roadmap', el.dataset.id); return api('PUT', 'roadmap', i.id, { ...i, done: Math.min(i.days, Math.max(0, i.done + +el.dataset.by)) }); },
   addRoadmap: (f) => api('POST', 'roadmap', null, { ...f, days: Math.max(1, num(f.days)), done: 0 }),
   editCv: () => { cvEditing = true; },
-  cancelCv: () => { cvEditing = false; },
+  cancelCv: () => { cvEditing = false; pendingOriginal = null; },
   saveCv: async (f) => {
     const doc = (await list('cv'))[0];
-    await (doc ? api('PUT', 'cv', doc.id, { text: f.text }) : api('POST', 'cv', null, { text: f.text }));
+    const original = pendingOriginal ?? doc?.original; // keep the existing original file unless this save just imported a new one
+    await (doc ? api('PUT', 'cv', doc.id, { text: f.text, original }) : api('POST', 'cv', null, { text: f.text, original }));
     cvEditing = false;
+    pendingOriginal = null;
+  },
+  downloadCvOriginal: (el) => {
+    const doc = get('cv', el.dataset.id);
+    const bytes = Uint8Array.from(atob(doc.original.base64), (c) => c.charCodeAt(0));
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([bytes])), download: doc.original.name });
+    a.click(); URL.revokeObjectURL(a.href);
   },
   printCv: () => window.print(),
   importCvFile: (el) => { readCvFile(el.files[0]); el.value = ''; return 'skip'; }, // skip: the read finishes after this returns, and a render() now would overwrite it with the still-unsaved doc
@@ -538,7 +559,7 @@ const actions = {
 };
 // meals/searches save or update their own bit of DOM without a full re-render, so typing focus and
 // half-filled forms survive; everything else re-renders. An action can also return 'skip' itself.
-const keepDom = new Set(['saveMeal', 'csv', 'cardSearch', 'deckCardSearch', 'copyDeckText', 'printCv']);
+const keepDom = new Set(['saveMeal', 'csv', 'cardSearch', 'deckCardSearch', 'copyDeckText', 'printCv', 'downloadCvOriginal']);
 
 const run = async (name, arg) => {
   let skip;

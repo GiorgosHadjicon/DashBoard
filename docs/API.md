@@ -74,9 +74,14 @@ These aren't enforced server-side — the store is deliberately schema-less — 
 
 **`cv`** — a single record (the frontend always reads/writes `list('cv')[0]`); `text` is plain
 markdown-ish source rendered by `cvHtml()` in `public/logic.js` (`# ` name, `## ` section, `- ` bullet,
-`**bold**`) — not a general markdown engine, just enough for a one-page CV
+`**bold**`) — not a general markdown engine, just enough for a one-page CV. `original`, present only
+after a PDF/DOCX/TXT/MD import, keeps the actual uploaded file (base64) so "Download original" can
+hand back the exact file — fonts, colours and layout the simplified `text` rendering can't keep
 ```jsonc
-{ "text": "# Jane Doe\nyou@example.com\n\n## Education\n**Trinity College Dublin** — BA…" }
+{
+  "text": "# Jane Doe\nyou@example.com\n\n## Education\n**Trinity College Dublin** — BA…",
+  "original": { "name": "Jane Doe CV.docx", "base64": "UEsDBBQABgAI…" }
+}
 ```
 
 ### CV import — `POST /api/cv/extract`
