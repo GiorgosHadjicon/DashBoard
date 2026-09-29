@@ -64,7 +64,11 @@ const deckAddPicker = (deckId) => `<div class="picker" data-key="deckadd-${deckI
 
 // ---- small shared pieces
 const hello = () => { const h = new Date().getHours(); return `${h < 5 ? 'Still up' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'}, ${NAME}`; };
-const fmtTime = (e) => (e.allDay ? 'All day' : new Date(e.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+const fmtTime = (e) => {
+  if (e.allDay) return 'All day';
+  const t = (d) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return e.end && new Date(e.end).getTime() !== new Date(e.start).getTime() ? `${t(e.start)}–${t(e.end)}` : t(e.start);
+};
 const dayLabel = (iso) => { const n = daysUntil(iso); return n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : new Date(iso + 'T00:00').toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' }); };
 const num = (v) => (v === '' || v == null ? 0 : +v);
 const empty = (msg) => `<p class="empty">${msg}</p>`;
