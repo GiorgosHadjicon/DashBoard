@@ -12,7 +12,7 @@ db.exec('create table if not exists docs(id integer primary key, kind text not n
 initCardsSchema(db);
 
 // One generic JSON-doc store for everything the user types in by hand.
-const KINDS = new Set(['deadline', 'deck', 'match', 'roadmap', 'meal', 'workout', 'lift']);
+const KINDS = new Set(['deadline', 'deck', 'match', 'roadmap', 'meal', 'workout', 'lift', 'cv']);
 const app = express();
 app.use(express.json());
 

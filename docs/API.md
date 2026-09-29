@@ -10,7 +10,7 @@ One table (`docs`, columns `id`, `kind`, `data` as a JSON blob) backs every hand
 must be one of:
 
 ```
-deadline · deck · match · roadmap · meal · workout · lift
+deadline · deck · match · roadmap · meal · workout · lift · cv
 ```
 
 Any other value → `404 { "error": "unknown kind" }` (enforced in `server.js` via `app.param`).
@@ -70,6 +70,13 @@ These aren't enforced server-side — the store is deliberately schema-less — 
 **`lift`** — one row per exercise per day, written whenever a workout's weight changes or "Log" is pressed
 ```jsonc
 { "exercise": "Bench press", "weight": 62.5, "reps": "8", "date": "2026-09-29" }
+```
+
+**`cv`** — a single record (the frontend always reads/writes `list('cv')[0]`); `text` is plain
+markdown-ish source rendered by `cvHtml()` in `public/logic.js` (`# ` name, `## ` section, `- ` bullet,
+`**bold**`) — not a general markdown engine, just enough for a one-page CV
+```jsonc
+{ "text": "# Jane Doe\nyou@example.com\n\n## Education\n**Trinity College Dublin** — BA…" }
 ```
 
 ## Live integrations

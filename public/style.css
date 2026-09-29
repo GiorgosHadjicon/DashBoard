@@ -68,8 +68,8 @@ input[type=checkbox] { width: 20px; height: 20px; padding: 0; accent-color: var(
 input[type=number] { width: 84px; }
 button { cursor: pointer; background: var(--accent); color: var(--on-accent); border: 0; font-weight: 600; transition: filter .15s; }
 button:hover { filter: brightness(1.1); }
-button.ghost, button.x { background: none; color: var(--muted); border: 1px solid var(--line); font-weight: 500; }
-button.ghost:hover { color: var(--fg); border-color: var(--muted); filter: none; }
+.ghost, button.x { display: inline-block; cursor: pointer; background: none; color: var(--muted); border: 1px solid var(--line); font-weight: 500; }
+.ghost:hover { color: var(--fg); border-color: var(--muted); filter: none; }
 button.x { border: 0; font-size: 1.2rem; padding: 2px 10px; }
 button.x:hover { color: var(--bad); filter: none; }
 
@@ -153,6 +153,23 @@ td.n { font-variant-numeric: tabular-nums; }
 .deckText { width: 100%; min-height: 140px; font-family: ui-monospace, monospace; font-size: .82rem; line-height: 1.5; resize: vertical; }
 li .picker { flex-basis: 100%; } /* inside a .list row: drop to its own line like .bar/.fold do */
 ul.list li > details.fold { flex-basis: 100%; margin: 10px 0 0; }
+
+/* ---- CV: a literal page, not a card — deliberately fixed white/black regardless of the app's
+   theme, since this is the one thing meant to be read/printed the same way every time. ---- */
+.cvEdit { width: 100%; min-height: 60vh; font-family: ui-monospace, monospace; font-size: .9rem; line-height: 1.6; resize: vertical; padding: 16px 20px; border-radius: var(--r); }
+.cv-page { background: #fff; color: #0d1b2e; border-radius: var(--r); padding: 48px 56px; max-width: 760px; box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 0 1px var(--line); line-height: 1.6; }
+.cv-page h1 { font-size: 2rem; }
+.cv-page h1 + p { color: #5b6f8a; }
+.cv-page h2 { font-family: var(--body); font-size: .9rem; text-transform: uppercase; letter-spacing: .06em; color: #5b6f8a; border-bottom: 1px solid #dbe4f0; padding-bottom: 6px; margin: 28px 0 12px; }
+.cv-page ul { margin: 0 0 10px; padding-left: 20px; }
+.cv-page li { margin-bottom: 4px; }
+
+@media print {
+  .no-print, .top { display: none !important; }
+  body { background: #fff; }
+  main { padding: 0; max-width: 100%; }
+  .cv-page { box-shadow: none; padding: 0; max-width: 100%; }
+}
 
 /* ---- phones: tabs become a bottom bar ---- */
 @media (max-width: 760px) {

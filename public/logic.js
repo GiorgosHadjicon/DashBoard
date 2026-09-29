@@ -57,6 +57,27 @@ export function buildDeckText(deck, lookup) {
   return lines.join('\n');
 }
 
+// CV markdown -> HTML. Deliberately not a general markdown engine — just enough for a one-page CV:
+// "# " name, "## " section headings, "- " bullets, "**bold**", blank-line-separated paragraphs.
+// Escapes everything itself, so this is the only place CV text ever becomes HTML.
+const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+export function cvHtml(md) {
+  const bold = (s) => escHtml(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  const out = [];
+  let list = null;
+  const closeList = () => { if (list) { out.push(`<ul>${list.join('')}</ul>`); list = null; } };
+  for (const raw of (md ?? '').split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) { closeList(); continue; }
+    if (line.startsWith('# ')) { closeList(); out.push(`<h1>${bold(line.slice(2))}</h1>`); }
+    else if (line.startsWith('## ')) { closeList(); out.push(`<h2>${bold(line.slice(3))}</h2>`); }
+    else if (line.startsWith('- ')) { (list ??= []).push(`<li>${bold(line.slice(2))}</li>`); }
+    else { closeList(); out.push(`<p>${bold(line)}</p>`); }
+  }
+  closeList();
+  return out.join('');
+}
+
 // Local-date helpers (toISOString would give UTC and flip the day around midnight)
 export const isoDate = (d = new Date()) => new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
 export const daysUntil = (iso) => {

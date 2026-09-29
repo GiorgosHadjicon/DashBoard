@@ -1,4 +1,4 @@
-import { matchups, pct, csv, isoDate, daysUntil, parseDeckText, buildDeckText } from './logic.js';
+import { matchups, pct, csv, isoDate, daysUntil, parseDeckText, buildDeckText, cvHtml } from './logic.js';
 
 const NAME = 'George';
 const main = document.getElementById('main');
@@ -331,6 +331,40 @@ views.roadmap = async () => {
     <form class="row" data-submit="addRoadmap"><input name="phase" placeholder="Group (e.g. Side projects)" required><input class="grow" name="title" placeholder="Title" required><input name="sub" placeholder="Description"><input type="number" name="days" min="1" value="1" title="Total steps" aria-label="Total steps"><button>Add</button></form></details>`;
 };
 
+// Skeleton shown the first time there's no CV yet, so Edit doesn't open on a blank page.
+const CV_TEMPLATE = `# Your Name
+you@example.com · +353 00 000 0000 · linkedin.com/in/you
+
+## Education
+**Trinity College Dublin** — BA (Mod) Computer Science, 2024–2028
+
+## Experience
+**Job Title** — Company, City (Month Year – Month Year)
+- What you did
+- What you achieved
+
+## Skills
+- Skill one, skill two, skill three
+
+## Projects
+**Project name** — one line description`;
+let cvEditing = false;
+
+views.cv = async () => {
+  const doc = (await list('cv'))[0];
+  if (cvEditing || !doc) return `<h2 class="no-print">CV</h2>
+    <form data-submit="saveCv">
+      <div class="row"><label class="ghost">Import a .txt/.md file<input type="file" accept=".txt,.md,text/plain,text/markdown" data-change="importCvFile" hidden></label></div>
+      <textarea name="text" class="cvEdit" spellcheck="false">${esc(doc?.text ?? CV_TEMPLATE)}</textarea>
+      <div class="row"><button>Save</button>${doc ? `<button type="button" class="ghost" data-click="cancelCv">Cancel</button>` : ''}</div>
+      <p class="muted small">Plain text: "# Name" for the title, "## Section" for a heading, "- item" for a bullet, "**bold**" for bold.
+      Have a PDF or Word CV instead? Open it, copy the text, and paste it above.</p>
+    </form>`;
+  return `<h2 class="no-print">CV</h2>
+  <div class="row no-print"><button class="ghost" data-click="editCv">Edit</button><button data-click="printCv">Print / Save as PDF</button></div>
+  <div class="cv-page">${cvHtml(doc.text)}</div>`;
+};
+
 // ---- actions (wired by data-* attributes via three delegated listeners)
 const logLift = async (w) => {
   const date = isoDate();
@@ -448,6 +482,23 @@ const actions = {
   },
   bump: (el) => { const i = get('roadmap', el.dataset.id); return api('PUT', 'roadmap', i.id, { ...i, done: Math.min(i.days, Math.max(0, i.done + +el.dataset.by)) }); },
   addRoadmap: (f) => api('POST', 'roadmap', null, { ...f, days: Math.max(1, num(f.days)), done: 0 }),
+  editCv: () => { cvEditing = true; },
+  cancelCv: () => { cvEditing = false; },
+  saveCv: async (f) => {
+    const doc = (await list('cv'))[0];
+    await (doc ? api('PUT', 'cv', doc.id, { text: f.text }) : api('POST', 'cv', null, { text: f.text }));
+    cvEditing = false;
+  },
+  printCv: () => window.print(),
+  importCvFile: (el) => {
+    const file = el.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { const ta = document.querySelector('textarea[name=text]'); if (ta) ta.value = reader.result; };
+    reader.readAsText(file);
+    el.value = ''; // lets the same file be re-picked later
+    return 'skip'; // the read finishes after this returns; a render() now would just overwrite it with the unsaved doc
+  },
   fitTab: (el) => { fitTab = el.dataset.tab; },
   dietDay: (el) => { dietDay = el.dataset.day; },
   saveMeal: async (el) => {
@@ -464,7 +515,7 @@ const actions = {
 };
 // meals/searches save or update their own bit of DOM without a full re-render, so typing focus and
 // half-filled forms survive; everything else re-renders. An action can also return 'skip' itself.
-const keepDom = new Set(['saveMeal', 'csv', 'cardSearch', 'deckCardSearch', 'copyDeckText']);
+const keepDom = new Set(['saveMeal', 'csv', 'cardSearch', 'deckCardSearch', 'copyDeckText', 'printCv']);
 
 const run = async (name, arg) => {
   let skip;
@@ -492,6 +543,7 @@ const TABS = {
   fitness: ['Fitness', ICON('<path d="M3 12h4l3-7 4 14 3-7h4"/>')],
   optcg: ['One Piece', ICON('<rect x="5" y="3" width="11" height="15" rx="2"/><path d="M9 21h8a3 3 0 0 0 3-3V8"/>')],
   roadmap: ['MyFirstHack', ICON('<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M6 16V9a3 3 0 0 1 3-3h7"/>')],
+  cv: ['CV', ICON('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>')],
 };
 const tab = () => (views[location.hash.slice(1)] ? location.hash.slice(1) : 'today');
 const nav = document.getElementById('nav');
