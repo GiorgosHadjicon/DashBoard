@@ -18,6 +18,9 @@ npm start              # → http://localhost:3000
 Everything works with `.env` empty except the hand-entered tabs — Garmin and the calendar just show
 "Not connected yet" with the reason, instead of breaking anything else.
 
+On this Mac it also starts automatically at login and restarts itself if it crashes, via a `launchd`
+agent — see [CONFIGURATION.md § Running at login](docs/CONFIGURATION.md#running-at-login-macos).
+
 ```bash
 npm test               # runs the logic.js test suite (node:assert, no framework)
 ```

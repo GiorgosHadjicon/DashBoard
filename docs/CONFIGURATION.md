@@ -108,3 +108,35 @@ Everything the server persists lives under `data/` (gitignored, created automati
 Deleting `data/` resets the dashboard to empty — there's no other copy of your typed-in data, so back
 it up (or `git`-track it privately elsewhere) if that matters to you. It's gitignored deliberately,
 since it can contain personal schedule/health data.
+
+## Running at login (macOS)
+
+The server is registered as a per-user `launchd` agent, so it starts automatically when you log in and
+restarts itself if it ever crashes:
+
+```
+~/Library/LaunchAgents/com.georgehadji.dashboard.plist
+```
+
+It runs `node server.js` with `/Users/georgehadji/Documents/GitHub/DashBoard` as its working directory
+(so it reads that folder's `.env` and `data/`), and logs to:
+
+```
+~/Library/Logs/dashboard.log      # stdout — just the "Dashboard → http://localhost:3000" line
+~/Library/Logs/dashboard.err.log  # stderr — look here first if it's not responding
+```
+
+Useful commands (all with your own user id — `id -u`, normally `501` for the first account on a Mac):
+
+```bash
+launchctl print gui/501/com.georgehadji.dashboard   # is it running? what's its pid?
+launchctl kickstart -k gui/501/com.georgehadji.dashboard   # restart it now (e.g. after editing .env)
+launchctl bootout gui/501/com.georgehadji.dashboard   # stop it and don't restart at next login
+launchctl bootstrap gui/501 ~/Library/LaunchAgents/com.georgehadji.dashboard.plist   # start it again
+```
+
+**After changing `.env` or the code**, restart it with `kickstart -k` (or bootout + bootstrap) — it
+won't pick up changes on its own, same as any other running server.
+
+**To remove autostart entirely:** `launchctl bootout gui/501/com.georgehadji.dashboard`, then delete
+the plist file above.
