@@ -1,6 +1,6 @@
 import express from 'express';
 import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 try { process.loadEnvFile('.env'); } catch { /* no .env yet: integrations will say so */ }
 const { garminToday } = await import('./lib/garmin.js');
 const { upcomingEvents } = await import('./lib/calendar.js');
@@ -15,6 +15,13 @@ initCardsSchema(db);
 const KINDS = new Set(['deadline', 'deck', 'match', 'roadmap', 'meal', 'workout', 'lift']);
 const app = express();
 app.use(express.json());
+
+// The page itself is never cached (some mobile browsers otherwise restore a stale copy from memory
+// on tab-switch, skipping the network entirely) and always points at this server-run's own version
+// of app.js/style.css — so every restart is guaranteed a fresh copy on next load, no manual hard-refresh needed.
+const BUILD = String(Date.now());
+const indexHtml = readFileSync('public/index.html', 'utf8').replace(/(app\.js|style\.css)/g, `$1?v=${BUILD}`);
+app.get('/', (req, res) => res.set('Cache-Control', 'no-store').type('html').send(indexHtml));
 app.use(express.static('public'));
 
 app.param('kind', (req, res, next, k) => (KINDS.has(k) ? next() : res.status(404).json({ error: 'unknown kind' })));
