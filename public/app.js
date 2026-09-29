@@ -409,8 +409,7 @@ views.cv = async () => {
     </form>`;
   return `<h2 class="no-print">CV</h2>
   <div class="row no-print"><button class="ghost" data-click="editCv">Edit</button><button data-click="printCv">Print / Save as PDF</button>
-  ${doc.original ? `<button class="ghost" data-click="viewCvOriginal" data-id="${doc.id}">View original</button>
-  <button class="ghost" data-click="downloadCvOriginal" data-id="${doc.id}">Download (${esc(doc.original.name)})</button>` : ''}</div>
+  ${doc.original ? `<button class="ghost" data-click="viewCvOriginal" data-id="${doc.id}">View original (${esc(doc.original.name)})</button>` : ''}</div>
   ${doc.original ? `<p class="muted small no-print">This page is a simplified read of your CV — fonts, colours and exact layout don't survive that.
   The button above gets you the ${esc(doc.original.name)} file exactly as imported.</p>` : ''}
   <div class="cv-page">${cvHtml(doc.text)}</div>`;
@@ -544,13 +543,8 @@ const actions = {
   },
   viewCvOriginal: (el) => {
     const url = cvOriginalBlobUrl(get('cv', el.dataset.id));
-    window.open(url, '_blank'); // PDFs render inline via the browser's own viewer; other types just download, same as below
+    window.open(url, '_blank'); // PDFs render inline via the browser's own viewer; other types just download instead
     setTimeout(() => URL.revokeObjectURL(url), 30000); // give the new tab time to actually load it before freeing it
-  },
-  downloadCvOriginal: (el) => {
-    const doc = get('cv', el.dataset.id);
-    const a = Object.assign(document.createElement('a'), { href: cvOriginalBlobUrl(doc), download: doc.original.name });
-    a.click(); URL.revokeObjectURL(a.href);
   },
   printCv: () => window.print(),
   importCvFile: (el) => { readCvFile(el.files[0]); el.value = ''; return 'skip'; }, // skip: the read finishes after this returns, and a render() now would overwrite it with the still-unsaved doc
@@ -571,7 +565,7 @@ const actions = {
 };
 // meals/searches save or update their own bit of DOM without a full re-render, so typing focus and
 // half-filled forms survive; everything else re-renders. An action can also return 'skip' itself.
-const keepDom = new Set(['saveMeal', 'csv', 'cardSearch', 'deckCardSearch', 'copyDeckText', 'printCv', 'viewCvOriginal', 'downloadCvOriginal']);
+const keepDom = new Set(['saveMeal', 'csv', 'cardSearch', 'deckCardSearch', 'copyDeckText', 'printCv', 'viewCvOriginal']);
 
 const run = async (name, arg) => {
   let skip;
