@@ -10,7 +10,7 @@ One table (`docs`, columns `id`, `kind`, `data` as a JSON blob) backs every hand
 must be one of:
 
 ```
-deadline · deck · match · roadmap · meal · workout · lift · cv
+deadline · deck · match · roadmap · meal · workout · lift · cv · milestone
 ```
 
 Any other value → `404 { "error": "unknown kind" }` (enforced in `server.js` via `app.param`).
@@ -33,6 +33,21 @@ These aren't enforced server-side — the store is deliberately schema-less — 
 ```jsonc
 { "title": "Assignment 2", "course": "CSU22014", "due": "2026-10-05", "done": false }
 ```
+`course` is picked from a fixed `MODULES` list in `public/app.js` (edit that array to change the
+list) via a `<select>`, not typed — but the field itself is still just a free string server-side.
+
+**`milestone`** — a fixed course-project checkpoint (e.g. one component of a multi-part assignment),
+seeded once by hand rather than typed through a form. Same shape as a `deadline` minus `course` being
+optional — it's required here, since milestones are always shown grouped by it (School's own section,
+and there's no separate "no module" case)
+```jsonc
+{ "course": "Computer Architecture", "title": "Register File — bonus 5%", "pct": 5, "due": "2026-10-27", "done": false }
+```
+`pct` is just carried in the title for display — nothing computes with it. School groups milestones
+into a "`{course}` — milestones" section (one per distinct `course` value); Today folds any not-done
+ones into the same "Due soon" list as deadlines, sorted in together by `due` rather than getting a
+section of their own, so a project deadline surfaces exactly when it's close, no more prominently
+than everything else that's due.
 
 **`deck`**
 ```jsonc

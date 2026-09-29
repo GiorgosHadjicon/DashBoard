@@ -3,6 +3,7 @@ import { matchups, pct, csv, isoDate, daysUntil, parseDeckText, buildDeckText, c
 const NAME = 'George';
 const main = document.getElementById('main');
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const MODULES = ['Discrete Mathematics', 'Applied Probability', 'Information Management', 'Computer Architecture', 'Algorithms and Data Structure', 'Systems Programming'];
 const MEALS = ['First meal (11–12)', 'Snack', 'Dinner']; // matches the printed plan's rows
 const todayName = () => DAYS[(new Date().getDay() + 6) % 7];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -89,10 +90,18 @@ const dueBadge = (d) => {
   return `<span class="pill ${cls}">${label}</span>`;
 };
 const deadlineRow = (d, withDelete) => `<li class="${d.done ? 'done' : ''}">
-  <input type="checkbox" data-change="toggleDeadline" data-id="${d.id}" ${d.done ? 'checked' : ''} aria-label="Done">
+  <input type="checkbox" data-change="toggleDone" data-kind="deadline" data-id="${d.id}" ${d.done ? 'checked' : ''} aria-label="Done">
   <div class="grow"><b>${esc(d.title)}</b>${d.course ? ` <span class="muted">${esc(d.course)}</span>` : ''}</div>${dueBadge(d)}
   ${withDelete ? `<button class="x" data-click="del" data-kind="deadline" data-id="${d.id}" title="Delete" aria-label="Delete">×</button>` : ''}</li>`;
-const addDeadlineForm = `<form class="row" data-submit="addDeadline"><input class="grow" name="title" placeholder="Add a deadline…" required><input name="course" placeholder="Module"><input type="date" name="due" required aria-label="Due date"><button>Add</button></form>`;
+// A milestone is a fixed course-project checkpoint (see docs/API.md) — same shape as a deadline
+// (title/due/done) minus `course`, since it's always shown already grouped under one.
+const milestoneRow = (m, withDelete) => `<li class="${m.done ? 'done' : ''}">
+  <input type="checkbox" data-change="toggleDone" data-kind="milestone" data-id="${m.id}" ${m.done ? 'checked' : ''} aria-label="Done">
+  <div class="grow"><b>${esc(m.title)}</b></div>${dueBadge(m)}
+  ${withDelete ? `<button class="x" data-click="del" data-kind="milestone" data-id="${m.id}" title="Delete" aria-label="Delete">×</button>` : ''}</li>`;
+const addDeadlineForm = `<form class="row" data-submit="addDeadline"><input class="grow" name="title" placeholder="Add a deadline…" required>
+  <select name="course" aria-label="Module"><option value="">No module</option>${MODULES.map((m) => `<option>${esc(m)}</option>`).join('')}</select>
+  <input type="date" name="due" required aria-label="Due date"><button>Add</button></form>`;
 
 const agenda = (cal, days) => {
   if (cal instanceof Error) return notConnected(cal);
@@ -111,13 +120,16 @@ const agenda = (cal, days) => {
 const views = {};
 
 views.today = async () => {
-  const [dl, meals, plan, cal, gar, road, matches] = await Promise.all([
-    list('deadline'), list('meal'), list('workout'),
+  const [dl, milestones, meals, plan, cal, gar, road, matches] = await Promise.all([
+    list('deadline'), list('milestone'), list('meal'), list('workout'),
     live('calendar').catch((e) => e), live('garmin').catch((e) => e),
     roadmapItems(), list('match'),
   ]);
   const day = todayName();
   const open = dl.filter((d) => !d.done).sort((a, b) => a.due.localeCompare(b.due));
+  // milestones fold into the same "Due soon" list rather than getting their own section — whichever
+  // is soonest (a deadline or a milestone) just naturally floats to the top together
+  const dueSoon = [...open, ...milestones.filter((m) => !m.done).map((m) => ({ ...m, _milestone: true }))].sort((a, b) => a.due.localeCompare(b.due));
   const week = open.filter((d) => daysUntil(d.due) <= 7).length;
   const overdue = open.filter((d) => daysUntil(d.due) < 0).length;
   const core = road.filter((i) => !i.phase.includes('coming soon')); // Phase 3 is pick-one, so it would inflate the total
@@ -147,7 +159,7 @@ views.today = async () => {
   <div class="two">
     <div>
       <h3>Due soon</h3>${addDeadlineForm}
-      <ul class="list">${open.slice(0, 5).map((d) => deadlineRow(d)).join('') || empty('Nothing due. Enjoy it.')}</ul>
+      <ul class="list">${dueSoon.slice(0, 5).map((d) => (d._milestone ? milestoneRow(d) : deadlineRow(d))).join('') || empty('Nothing due. Enjoy it.')}</ul>
       <h3>Next 7 days</h3>${agenda(cal, 7)}
     </div>
     <details class="fold mobile-fold">
@@ -165,7 +177,7 @@ views.today = async () => {
 };
 
 views.school = async () => {
-  const items = await list('deadline');
+  const [items, milestones] = await Promise.all([list('deadline'), list('milestone')]);
   const by = (a, b) => a.due.localeCompare(b.due);
   const open = items.filter((d) => !d.done).sort(by);
   const groups = [
@@ -174,9 +186,12 @@ views.school = async () => {
     ['Later', open.filter((d) => daysUntil(d.due) > 7)],
   ];
   const done = items.filter((d) => d.done).sort(by).reverse();
+  // grouped by course so a second project's milestones later would get their own section for free
+  const msByCourse = milestones.reduce((m, x) => ((m[x.course] ??= []).push(x), m), {});
   return `<h2>School</h2>${addDeadlineForm}
   ${groups.map(([t, ds]) => (ds.length ? `<h3>${t}</h3><ul class="list">${ds.map((d) => deadlineRow(d, true)).join('')}</ul>` : '')).join('') || empty('No deadlines yet. Add your first one above.')}
-  ${done.length ? `<details class="fold"><summary>Completed (${done.length})</summary><ul class="list">${done.map((d) => deadlineRow(d, true)).join('')}</ul></details>` : ''}`;
+  ${done.length ? `<details class="fold"><summary>Completed (${done.length})</summary><ul class="list">${done.map((d) => deadlineRow(d, true)).join('')}</ul></details>` : ''}
+  ${Object.entries(msByCourse).map(([course, ms]) => `<h3>${esc(course)} — milestones</h3><ul class="list">${ms.sort(by).map((m) => milestoneRow(m, true)).join('')}</ul>`).join('')}`;
 };
 
 // ---- Fitness = three switchable panels
@@ -457,7 +472,7 @@ const setWeight = async (w, weight) => { const upd = { ...w, weight }; await api
 
 const actions = {
   addDeadline: (f) => api('POST', 'deadline', null, { ...f, done: false }),
-  toggleDeadline: (el) => { const d = get('deadline', el.dataset.id); return api('PUT', 'deadline', d.id, { ...d, done: el.checked }); },
+  toggleDone: (el) => { const kind = el.dataset.kind; const d = get(kind, el.dataset.id); return api('PUT', kind, d.id, { ...d, done: el.checked }); },
   del: (el) => {
     if (el.dataset.kind === 'deck' && !confirm('Delete this deck? Its logged matches stay in the totals.')) return;
     return api('DELETE', el.dataset.kind, el.dataset.id);
