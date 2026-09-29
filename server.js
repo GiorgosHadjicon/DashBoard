@@ -5,7 +5,6 @@ try { process.loadEnvFile('.env'); } catch { /* no .env yet: integrations will s
 const { garminToday } = await import('./lib/garmin.js');
 const { upcomingEvents } = await import('./lib/calendar.js');
 const { initCardsSchema, syncCards, searchCards, cardsMeta } = await import('./lib/cards.js');
-const strava = await import('./lib/strava.js');
 
 mkdirSync('data', { recursive: true });
 const db = new DatabaseSync('data/dashboard.db');
@@ -65,19 +64,6 @@ const live = (name, fn) => app.get(`/api/${name}`, async (req, res) => {
 });
 live('garmin', garminToday);
 live('calendar', upcomingEvents);
-live('strava', () => strava.stravaActivities(db));
-
-// Strava OAuth: click "Connect Strava" → authorize on strava.com → back here with a `code` to trade
-// for tokens. The redirect_uri must match the app's "Authorization Callback Domain" on strava.com/settings/api.
-app.get('/auth/strava/start', (req, res) => {
-  try { res.redirect(strava.authUrl(`http://${req.headers.host}/auth/strava/callback`)); }
-  catch (e) { res.status(400).send(e.message); }
-});
-app.get('/auth/strava/callback', async (req, res) => {
-  if (req.query.error) return res.status(400).send(`Strava denied access: ${req.query.error}`);
-  try { await strava.exchangeCode(db, req.query.code); res.redirect('/#fitness'); }
-  catch (e) { res.status(502).send(e.message); }
-});
 
 // Keeps the Garmin cache warm even when nobody has the tab open, so it's never more than an hour stale.
 if (process.env.GARMIN_EMAIL) {

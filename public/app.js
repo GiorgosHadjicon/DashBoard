@@ -172,22 +172,16 @@ views.school = async () => {
 const pills = (items, current, action, attr) => `<div class="days">${items.map(([k, label]) => `<button class="${k === current ? 'on' : ''}" data-click="${action}" data-${attr}="${k}">${label}</button>`).join('')}</div>`;
 
 const garminBody = async () => {
-  const [garRes, straRes] = await Promise.allSettled([live('garmin'), live('strava')]);
-  const g = garRes.status === 'fulfilled' ? garRes.value : null;
-  const sActs = straRes.status === 'fulfilled' ? straRes.value : [];
-  const stravaNotConnected = straRes.status === 'rejected' && /not connected/i.test(straRes.reason.message);
-  const activities = [...(g?.activities ?? []), ...sActs].sort((a, b) => new Date(b.start) - new Date(a.start)).slice(0, 10);
-
-  return `${garRes.status === 'rejected' ? notConnected(garRes.reason) : `<div class="tiles">
+  try {
+    const g = await live('garmin');
+    return `<div class="tiles">
       <div class="tile"><b>${g.steps ?? '—'}</b><span>steps today</span></div>
       <div class="tile"><b>${g.sleepHours ?? '—'}h</b><span>sleep last night</span></div>
-      <div class="tile"><b>${g.restingHr ?? '—'}</b><span>resting heart rate · 7-day avg ${g.weekAvgRestingHr ?? '—'}</span></div></div>`}
-    ${stravaNotConnected ? `<p class="banner">Strava isn't connected. <a href="/auth/strava/start">Connect Strava</a> to bring its activities in too.</p>`
-      : straRes.status === 'rejected' ? notConnected(straRes.reason) : ''}
-    <h3>Recent activities</h3><ul class="list">${activities.map((a) => `<li><span class="pill">${esc(a.source)}</span>
-      <div class="grow"><b>${esc(a.name)}</b> <span class="muted">${esc(a.start.slice(0, 10))}</span></div>
+      <div class="tile"><b>${g.restingHr ?? '—'}</b><span>resting heart rate · 7-day avg ${g.weekAvgRestingHr ?? '—'}</span></div></div>
+      <h3>Recent activities</h3><ul class="list">${g.activities.map((a) => `<li><div class="grow"><b>${esc(a.name)}</b> <span class="muted">${esc(a.start.slice(0, 10))}</span></div>
       <span class="pill">${a.km} km · ${a.min} min</span></li>`).join('') || empty('No activities yet.')}</ul>
-    <p><button class="ghost" data-click="refresh" data-name="garmin">Refresh Garmin</button>${stravaNotConnected ? '' : ' <button class="ghost" data-click="refresh" data-name="strava">Refresh Strava</button>'}</p>`;
+      <p><button class="ghost" data-click="refresh" data-name="garmin">Refresh from Garmin</button></p>`;
+  } catch (e) { return notConnected(e); }
 };
 
 const dietBody = async () => {
