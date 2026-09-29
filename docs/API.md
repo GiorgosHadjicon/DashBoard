@@ -74,9 +74,12 @@ These aren't enforced server-side — the store is deliberately schema-less — 
 
 **`cv`** — a single record (the frontend always reads/writes `list('cv')[0]`); `text` is plain
 markdown-ish source rendered by `cvHtml()` in `public/logic.js` (`# ` name, `## ` section, `- ` bullet,
-`**bold**`) — not a general markdown engine, just enough for a one-page CV. `original`, present only
-after a PDF/DOCX/TXT/MD import, keeps the actual uploaded file (base64) so "Download original" can
-hand back the exact file — fonts, colours and layout the simplified `text` rendering can't keep
+`**bold**`) — not a general markdown engine, just enough for a one-page CV. It's never typed by hand:
+edit mode renders `cvHtml()` into a `contenteditable` div with a Bold/Title/Heading/List toolbar
+(native `document.execCommand`, no editor dependency), and `htmlToCvText()` (`public/app.js`) walks
+the edited DOM back into this same `#`/`##`/`-`/`**bold**` syntax on save. `original`, present only
+after a PDF/DOCX/TXT/MD import, keeps the actual uploaded file (base64) so "View original" can open
+the exact file — fonts, colours and layout the simplified `text` rendering can't keep
 ```jsonc
 {
   "text": "# Jane Doe\nyou@example.com\n\n## Education\n**Trinity College Dublin** — BA…",

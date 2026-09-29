@@ -364,9 +364,31 @@ const cvOriginalBlobUrl = (doc) => {
   return URL.createObjectURL(new Blob([bytes], { type }));
 };
 
+// The reverse of cvHtml(): walks the edited DOM back into our #/##/- syntax for storage, so the
+// editor can show real headings/bullets/bold (contenteditable) while everything else — printing,
+// re-importing, matchups with the render — keeps working against the same plain-text format.
+function htmlToCvText(container) {
+  const inline = (el) => [...el.childNodes].map((n) => {
+    if (n.nodeType === Node.TEXT_NODE) return n.textContent;
+    if (/^(b|strong)$/i.test(n.tagName)) return `**${inline(n)}**`;
+    return inline(n); // unwrap anything else (span, i, div from a stray Enter, …) to its text
+  }).join('');
+  const lines = [];
+  for (const el of container.children) {
+    const text = inline(el).replace(/\s+/g, ' ').trim();
+    if (!text) continue;
+    if (el.tagName === 'H1') lines.push(`# ${text}`);
+    else if (/^H[2-6]$/.test(el.tagName)) lines.push(`## ${text}`);
+    else if (el.tagName === 'UL' || el.tagName === 'OL') {
+      for (const li of el.children) { const t = inline(li).replace(/\s+/g, ' ').trim(); if (t) lines.push(`- ${t}`); }
+    } else lines.push(text);
+  }
+  return lines.join('\n');
+}
+
 function readCvFile(file) {
   if (!file) return;
-  const setCv = (text) => { const ta = document.querySelector('textarea[name=text]'); if (ta) ta.value = text; };
+  const setCv = (text) => { const area = document.getElementById('cvEdit'); if (area) area.innerHTML = cvHtml(text); };
   const ext = file.name.toLowerCase().split('.').pop();
   if (ext === 'txt' || ext === 'md') {
     const reader = new FileReader();
@@ -397,16 +419,20 @@ function readCvFile(file) {
 views.cv = async () => {
   const doc = (await list('cv'))[0];
   if (cvEditing || !doc) return `<h2 class="no-print">CV</h2>
-    <form data-submit="saveCv">
-      <label class="cvDrop" data-drop="dropCvFile">${ICON('<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>')}
-        <b>Import your CV</b><span class="muted">TXT, MD, PDF or DOCX — click to browse, or drag one here</span>
-        <input type="file" accept=".txt,.md,.pdf,.docx,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" data-change="importCvFile" hidden>
-      </label>
-      <textarea name="text" class="cvEdit" spellcheck="false">${esc(doc?.text ?? CV_TEMPLATE)}</textarea>
-      <div class="row"><button>Save</button>${doc ? `<button type="button" class="ghost" data-click="cancelCv">Cancel</button>` : ''}</div>
-      <p class="muted small">Plain text: "# Name" for the title, "## Section" for a heading, "- item" for a bullet, "**bold**" for bold.
-      A PDF/DOCX import brings in the words, not the formatting — mark up the headings and bullets afterward.</p>
-    </form>`;
+    <label class="cvDrop" data-drop="dropCvFile">${ICON('<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>')}
+      <b>Import your CV</b><span class="muted">TXT, MD, PDF or DOCX — click to browse, or drag one here</span>
+      <input type="file" accept=".txt,.md,.pdf,.docx,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" data-change="importCvFile" hidden>
+    </label>
+    <div class="row cvToolbar">
+      <button type="button" class="ghost" data-click="cvCmd" data-cmd="bold" title="Bold"><b>B</b></button>
+      <button type="button" class="ghost" data-click="cvCmd" data-cmd="h1" title="Title (the name, once)">Title</button>
+      <button type="button" class="ghost" data-click="cvCmd" data-cmd="h2" title="Section heading">Heading</button>
+      <button type="button" class="ghost" data-click="cvCmd" data-cmd="ul" title="Bullet list">• List</button>
+      <button type="button" class="ghost" data-click="cvCmd" data-cmd="p" title="Back to plain text">Normal</button>
+    </div>
+    <div class="cv-page" id="cvEdit" contenteditable="true" spellcheck="false">${cvHtml(doc?.text ?? CV_TEMPLATE)}</div>
+    <div class="row"><button data-click="saveCv">Save</button>${doc ? `<button type="button" class="ghost" data-click="cancelCv">Cancel</button>` : ''}</div>
+    <p class="muted small">Select text and click a button (or Cmd/Ctrl+B) to format it — like a normal document, not typed syntax.</p>`;
   return `<h2 class="no-print">CV</h2>
   <div class="row no-print"><button class="ghost" data-click="editCv">Edit</button><button data-click="printCv">Print / Save as PDF</button>
   ${doc.original ? `<button class="ghost" data-click="viewCvOriginal" data-id="${doc.id}">View original (${esc(doc.original.name)})</button>` : ''}</div>
@@ -534,10 +560,19 @@ const actions = {
   addRoadmap: (f) => api('POST', 'roadmap', null, { ...f, days: Math.max(1, num(f.days)), done: 0 }),
   editCv: () => { cvEditing = true; },
   cancelCv: () => { cvEditing = false; pendingOriginal = null; },
-  saveCv: async (f) => {
+  cvCmd: (el) => {
+    const area = document.getElementById('cvEdit');
+    area.focus();
+    const cmd = { bold: () => document.execCommand('bold'), ul: () => document.execCommand('insertUnorderedList') }[el.dataset.cmd]
+      ?? (() => document.execCommand('formatBlock', false, el.dataset.cmd));
+    cmd();
+    return 'skip'; // a re-render would rebuild #cvEdit from the still-unsaved doc, losing what's selected
+  },
+  saveCv: async () => {
     const doc = (await list('cv'))[0];
+    const text = htmlToCvText(document.getElementById('cvEdit'));
     const original = pendingOriginal ?? doc?.original; // keep the existing original file unless this save just imported a new one
-    await (doc ? api('PUT', 'cv', doc.id, { text: f.text, original }) : api('POST', 'cv', null, { text: f.text, original }));
+    await (doc ? api('PUT', 'cv', doc.id, { text, original }) : api('POST', 'cv', null, { text, original }));
     cvEditing = false;
     pendingOriginal = null;
   },

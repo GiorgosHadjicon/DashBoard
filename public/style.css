@@ -165,8 +165,9 @@ ul.list li > details.fold { flex-basis: 100%; margin: 10px 0 0; }
 .cvDrop span { font-size: .82rem; }
 .cvDrop:hover { border-color: var(--accent); }
 .cvDrop.drag { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); transform: scale(1.01); }
-.cvEdit { width: 100%; min-height: 60vh; font-family: ui-monospace, monospace; font-size: .9rem; line-height: 1.6; resize: vertical; padding: 16px 20px; border-radius: var(--r); }
+.cvToolbar { margin-bottom: 10px; }
 .cv-page { background: #fff; color: #0d1b2e; border-radius: var(--r); padding: 48px 56px; max-width: 760px; box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 0 1px var(--line); line-height: 1.6; }
+.cv-page[contenteditable] { min-height: 50vh; outline: none; box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 0 2px var(--accent); cursor: text; margin-bottom: 14px; }
 .cv-page h1 { font-size: 2rem; }
 .cv-page h1 + p { color: #5b6f8a; }
 .cv-page h2 { font-family: var(--body); font-size: .9rem; text-transform: uppercase; letter-spacing: .06em; color: #5b6f8a; border-bottom: 1px solid #dbe4f0; padding-bottom: 6px; margin: 28px 0 12px; }
