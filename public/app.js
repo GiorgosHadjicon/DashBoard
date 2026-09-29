@@ -356,6 +356,13 @@ let cvEditing = false;
 // simplified #/##/- version (no fonts, colours or layout survive that), so this is what lets "view
 // the original" mean the *actual* file, opened in Word/Preview/whatever made it, not our guess at it.
 let pendingOriginal = null;
+const CV_MIME = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', txt: 'text/plain', md: 'text/markdown' };
+const cvOriginalBlobUrl = (doc) => {
+  const { name, base64 } = doc.original;
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const type = CV_MIME[name.toLowerCase().split('.').pop()] ?? 'application/octet-stream';
+  return URL.createObjectURL(new Blob([bytes], { type }));
+};
 
 function readCvFile(file) {
   if (!file) return;
@@ -402,7 +409,8 @@ views.cv = async () => {
     </form>`;
   return `<h2 class="no-print">CV</h2>
   <div class="row no-print"><button class="ghost" data-click="editCv">Edit</button><button data-click="printCv">Print / Save as PDF</button>
-  ${doc.original ? `<button class="ghost" data-click="downloadCvOriginal" data-id="${doc.id}">Download original (${esc(doc.original.name)})</button>` : ''}</div>
+  ${doc.original ? `<button class="ghost" data-click="viewCvOriginal" data-id="${doc.id}">View original</button>
+  <button class="ghost" data-click="downloadCvOriginal" data-id="${doc.id}">Download (${esc(doc.original.name)})</button>` : ''}</div>
   ${doc.original ? `<p class="muted small no-print">This page is a simplified read of your CV — fonts, colours and exact layout don't survive that.
   The button above gets you the ${esc(doc.original.name)} file exactly as imported.</p>` : ''}
   <div class="cv-page">${cvHtml(doc.text)}</div>`;
@@ -534,10 +542,14 @@ const actions = {
     cvEditing = false;
     pendingOriginal = null;
   },
+  viewCvOriginal: (el) => {
+    const url = cvOriginalBlobUrl(get('cv', el.dataset.id));
+    window.open(url, '_blank'); // PDFs render inline via the browser's own viewer; other types just download, same as below
+    setTimeout(() => URL.revokeObjectURL(url), 30000); // give the new tab time to actually load it before freeing it
+  },
   downloadCvOriginal: (el) => {
     const doc = get('cv', el.dataset.id);
-    const bytes = Uint8Array.from(atob(doc.original.base64), (c) => c.charCodeAt(0));
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([bytes])), download: doc.original.name });
+    const a = Object.assign(document.createElement('a'), { href: cvOriginalBlobUrl(doc), download: doc.original.name });
     a.click(); URL.revokeObjectURL(a.href);
   },
   printCv: () => window.print(),
@@ -559,7 +571,7 @@ const actions = {
 };
 // meals/searches save or update their own bit of DOM without a full re-render, so typing focus and
 // half-filled forms survive; everything else re-renders. An action can also return 'skip' itself.
-const keepDom = new Set(['saveMeal', 'csv', 'cardSearch', 'deckCardSearch', 'copyDeckText', 'printCv', 'downloadCvOriginal']);
+const keepDom = new Set(['saveMeal', 'csv', 'cardSearch', 'deckCardSearch', 'copyDeckText', 'printCv', 'viewCvOriginal', 'downloadCvOriginal']);
 
 const run = async (name, arg) => {
   let skip;
