@@ -78,6 +78,43 @@ export function cvHtml(md) {
   return out.join('');
 }
 
+// Best-effort formatting of raw extracted text (a pasted/imported CV) into the "#"/"##"/"-" syntax
+// cvHtml() reads. Heuristics, not a real parser — there's no reliable signal in plain text for what
+// should be bold, so that's left alone. Any line that's already "#"/"##"/"-"-prefixed (e.g. real
+// headings/bullets a smarter DOCX conversion already recovered) is kept exactly as-is, never
+// re-wrapped — but a document being partly formatted doesn't stop the rest from still being read.
+const CV_SECTIONS = new Set([
+  'education', 'experience', 'work experience', 'employment', 'employment history', 'professional experience',
+  'skills', 'technical skills', 'key skills', 'core skills',
+  'projects', 'personal projects', 'certifications', 'certificates', 'awards', 'achievements',
+  'languages', 'volunteering', 'volunteer experience', 'publications', 'references',
+  'profile', 'summary', 'objective', 'about', 'about me', 'interests', 'hobbies', 'activities',
+  'extracurricular', 'extracurricular activities', 'leadership', 'training', 'courses',
+]);
+const ALLCAPS_HEADING = /^[A-Z][A-Z &/-]{1,38}$/; // e.g. "WORK EXPERIENCE" — but not an address/phone line
+const ALREADY_FORMATTED = /^(#{1,2}\s|-\s)/;
+const BULLET = /^[-*•●▪‣∙◦]\s*/;
+const toTitleCase = (s) => s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+
+export function autoFormatCv(raw) {
+  const lines = (raw ?? '').split(/\r?\n/).map((l) => l.trim());
+  let sawName = lines.some((l) => l.startsWith('# ')); // a real "# " heading already exists — don't also invent one
+
+  const out = [];
+  let blank = true; // starts true so leading blank lines are dropped, not just collapsed
+  for (const line of lines) {
+    if (!line) { if (!blank) out.push(''); blank = true; continue; }
+    blank = false;
+    if (ALREADY_FORMATTED.test(line)) { out.push(line); sawName ||= line.startsWith('# '); continue; }
+    if (!sawName && line.length < 60 && !line.includes('@')) { out.push(`# ${line}`); sawName = true; continue; }
+    const key = line.replace(/:$/, '');
+    if (CV_SECTIONS.has(key.toLowerCase()) || ALLCAPS_HEADING.test(key)) { out.push(`## ${toTitleCase(key)}`); continue; }
+    if (BULLET.test(line)) { out.push(`- ${line.replace(BULLET, '')}`); continue; }
+    out.push(line);
+  }
+  return out.join('\n').trim();
+}
+
 // Local-date helpers (toISOString would give UTC and flip the day around midnight)
 export const isoDate = (d = new Date()) => new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
 export const daysUntil = (iso) => {

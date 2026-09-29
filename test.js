@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { matchups, pct, csv, isoDate, daysUntil, parseDeckText, buildDeckText, cvHtml } from './public/logic.js';
+import { matchups, pct, csv, isoDate, daysUntil, parseDeckText, buildDeckText, cvHtml, autoFormatCv } from './public/logic.js';
 
 const m = (opp, first, result) => ({ opp, first, result });
 const rows = matchups([
@@ -41,4 +41,13 @@ assert.equal(
   cvHtml('# Jane Doe\n\n## Skills\n- **JS** and HTML\n- SQL\n\nOpen to work <script>'),
   '<h1>Jane Doe</h1><h2>Skills</h2><ul><li><b>JS</b> and HTML</li><li>SQL</li></ul><p>Open to work &lt;script&gt;</p>',
 );
+// auto-format: first line becomes the name, known/shouty section names become "##", bulleted lines
+// become "-", everything else is left as a paragraph
+assert.equal(
+  autoFormatCv('Jane Doe\njane@example.com\n\nEDUCATION\nTrinity College Dublin\n\nSKILLS:\n• JavaScript\n* Python'),
+  '# Jane Doe\njane@example.com\n\n## Education\nTrinity College Dublin\n\n## Skills\n- JavaScript\n- Python',
+);
+// already-formatted input (has a real #/##/- line) is left untouched, not reformatted a second time
+const already = '# Jane Doe\n\n## Skills\n- JS';
+assert.equal(autoFormatCv(already), already);
 console.log('ok');

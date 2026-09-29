@@ -96,6 +96,11 @@ round trip needed.
 anything other than `.pdf`/`.docx`. The body limit is raised to 15MB globally in `server.js` to fit
 a base64-encoded file in one request.
 
+The returned `text` is auto-formatted into the `#`/`##`/`-` syntax via `autoFormatCv()`
+(`public/logic.js`, also used client-side for `.txt`/`.md`) — a heading/bullet/name heuristic for
+plain text, plus (for `.docx` only) a first pass that reads Word's real heading styles, bold runs
+and list structure via `mammoth.convertToHtml()` rather than the lossy `extractRawText()`.
+
 ## Live integrations
 
 Each of these wraps a `lib/*.js` module and caches its result **in memory for 10 minutes** (a

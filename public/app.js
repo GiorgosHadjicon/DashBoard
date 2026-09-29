@@ -1,4 +1,4 @@
-import { matchups, pct, csv, isoDate, daysUntil, parseDeckText, buildDeckText, cvHtml } from './logic.js';
+import { matchups, pct, csv, isoDate, daysUntil, parseDeckText, buildDeckText, cvHtml, autoFormatCv } from './logic.js';
 
 const NAME = 'George';
 const main = document.getElementById('main');
@@ -358,7 +358,7 @@ function readCvFile(file) {
   const ext = file.name.toLowerCase().split('.').pop();
   if (ext === 'txt' || ext === 'md') {
     const reader = new FileReader();
-    reader.onload = () => setCv(reader.result);
+    reader.onload = () => setCv(autoFormatCv(reader.result));
     reader.readAsText(file);
     return;
   }
@@ -371,7 +371,7 @@ function readCvFile(file) {
         body: JSON.stringify({ filename: file.name, base64: reader.result.split(',')[1] }),
       }).then((r) => r.json());
       if (error) throw new Error(error);
-      setCv(text);
+      setCv(text); // already auto-formatted server-side (lib/cvImport.js)
     } catch (e) { showToast(e.message, 'error'); }
   };
   reader.readAsDataURL(file);
