@@ -89,9 +89,13 @@ details.fold[open] summary { margin-bottom: 10px; }
 
 /* A phone-only collapse (Today's "More" section, the calendar's later days): desktop always shows
    it open and plain (no summary, ignores the closed state) — the @media block below restores native
-   collapse behaviour there. */
+   collapse behaviour there. Chrome renders a closed <details>'s content in an internal
+   ::details-content box that clips to height:0 independently of any child's own `display` — overriding
+   only the children (as below) left that wrapper clipped, so the section measured 0 height and
+   nothing showed despite every child correctly saying display:block. */
 details.mobile-fold > summary { display: none; }
 details.mobile-fold > * { display: block; }
+details.mobile-fold::details-content { content-visibility: visible; height: auto; overflow: visible; }
 
 /* segmented switch + day pills */
 .seg { display: inline-flex; padding: 4px; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 99px; margin-bottom: 22px; }
@@ -167,6 +171,7 @@ ul.list li > details.fold { flex-basis: 100%; margin: 10px 0 0; }
      Calendar agenda: only today's own schedule shows; later days are the same one tap away. */
   details.mobile-fold > summary { display: block; }
   details.mobile-fold:not([open]) > *:not(summary) { display: none; }
+  details.mobile-fold:not([open])::details-content { content-visibility: hidden; height: 0; overflow: clip; }
 
   /* Quick-add forms: stacked full-width fields instead of everything squeezed onto one cramped row. */
   form.row { flex-direction: column; align-items: stretch; }
