@@ -601,8 +601,13 @@ const TABS = {
 };
 const tab = () => (views[location.hash.slice(1)] ? location.hash.slice(1) : 'today');
 const nav = document.getElementById('nav');
+let shownTab = null; // whichever tab's content is actually on screen right now
 async function render() {
   nav.innerHTML = Object.entries(TABS).map(([k, [label, icon]]) => `<a href="#${k}" class="${k === tab() ? 'on' : ''}">${icon}<span>${label}</span></a>`).join('');
+  // Switching tabs should feel instant even while its data is still loading — only an action
+  // re-rendering the *same* tab (adding a deadline, etc.) keeps the current content up while it works.
+  if (tab() !== shownTab) main.innerHTML = '<p class="muted">Loading…</p>';
+  shownTab = tab();
   try { main.innerHTML = await views[tab()](); } catch (e) { main.innerHTML = `<p class="bad">${esc(e.message)}</p>`; }
   if (toast) main.insertAdjacentHTML('afterbegin', `<p class="toast ${toast.kind}">${esc(toast.text)}</p>`);
 }
