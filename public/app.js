@@ -144,7 +144,8 @@ views.today = async () => {
       <ul class="list">${open.slice(0, 5).map((d) => deadlineRow(d)).join('') || empty('Nothing due. Enjoy it.')}</ul>
       <h3>Next 7 days</h3>${agenda(cal, 7)}
     </div>
-    <div>
+    <details class="fold today-more">
+      <summary>More for today</summary>
       <h3>Workout today</h3>
       ${lifts.map((w) => `<p>${esc(w.exercise)} <span class="muted">${esc(w.sets)}×${esc(w.reps)} · ${esc(w.weight)}kg</span></p>`).join('') || empty('Rest day.')}
       <h3>Food today</h3>
@@ -153,7 +154,7 @@ views.today = async () => {
       <h3>Next up</h3>
       ${cur ? `<p><b>${esc(cur.title)}</b> <span class="muted">${cur.done}/${cur.days}</span></p>` : '<p class="muted">Roadmap complete.</p>'}
       ${best ? `<h3>One Piece</h3><p><span class="good">Best</span> vs ${esc(best.opp)} <span class="muted">${pct(best.w, best.l)}%</span><br><span class="bad">Toughest</span> vs ${esc(worst.opp)} <span class="muted">${pct(worst.w, worst.l)}%</span></p>` : ''}
-    </div>
+    </details>
   </div>`;
 };
 

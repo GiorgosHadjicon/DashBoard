@@ -87,6 +87,11 @@ details.fold summary { cursor: pointer; color: var(--muted); font-weight: 600; p
 details.fold summary:hover { color: var(--fg); }
 details.fold[open] summary { margin-bottom: 10px; }
 
+/* Today's "More" section: a phone-only collapse. Desktop always shows it open and plain (no summary,
+   ignores the closed state) — phone's @media block below restores the native collapse behaviour. */
+details.today-more > summary { display: none; }
+details.today-more > * { display: block; }
+
 /* segmented switch + day pills */
 .seg { display: inline-flex; padding: 4px; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 99px; margin-bottom: 22px; }
 .seg button { background: none; color: var(--muted); border-radius: 99px; padding: 7px 20px; }
@@ -155,5 +160,10 @@ ul.list li > details.fold { flex-basis: 100%; margin: 10px 0 0; }
   .two { grid-template-columns: 1fr; gap: 0; }
   .week .d { width: 40px; }
   table { display: block; overflow-x: auto; }
+
+  /* Today: only "Due soon" and "Next 7 days" show by default — everything else (workout, food,
+     body, roadmap, One Piece) is one tap away instead of a long scroll, same data either way. */
+  details.today-more > summary { display: block; }
+  details.today-more:not([open]) > *:not(summary) { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
