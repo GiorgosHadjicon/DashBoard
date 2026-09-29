@@ -101,6 +101,11 @@ Pulls plain text out of an uploaded PDF or Word file (see `lib/cvImport.js`, via
 (`docxToStyledHtml()`). `.txt`/`.md` never reach this — the browser reads those itself with
 `FileReader`, no round trip needed. `textutil` is macOS-only and best-effort: if it's missing or
 chokes on the file, `styledHtml` just comes back `null` and the import still succeeds with `text`.
+Two quirks in textutil's own HTML are corrected before storing it (`fixTextutilHtml()` in
+`lib/cvImport.js`): it maps Word's point sizes 1:1 to CSS px (so text renders ~25% smaller than Word
+actually shows it — scaled back up ×4/3), and it draws a visible grey border around every table cell
+regardless of what the `.docx` says, which breaks the common "job title + date" borderless-table
+layout — defaulted off.
 
 ```jsonc
 // request
