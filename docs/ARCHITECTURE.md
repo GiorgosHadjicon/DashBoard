@@ -105,11 +105,14 @@ this external, uncontrollable-by-us API correctly."
 
 ## Security posture
 
-- The server binds to `127.0.0.1` only (`server.js`, last line) — not reachable from your network,
-  let alone the internet, as shipped.
-- There is **no authentication**. Anyone who can reach the port can read and write everything.
+- The server binds to `127.0.0.1` only by default (`server.js`) — not reachable from your network,
+  let alone the internet, as shipped. `HOST` optionally binds one more address alongside that.
+- There is **no authentication**. Anyone who can reach a bound address can read and write everything.
 - `.env` holds real passwords and feed URLs; it's gitignored and must stay that way.
-- If this ever gets deployed somewhere reachable by more than "this one Mac," add auth first — that's
-  not a "nice to have," it's a precondition, since `.env` alone won't protect a publicly reachable port.
+- Reaching this from another device is meant to go through `HOST` set to a **Tailscale** IP — see
+  [CONFIGURATION.md § Other devices](CONFIGURATION.md#other-devices-tailscale) — which does the
+  access control Tailscale-side, since nothing here checks who's asking. Setting `HOST` to a raw LAN
+  IP or `0.0.0.0`, or actually deploying this somewhere public, would need real authentication added
+  first — that's not a "nice to have," it's a precondition once more than "this one Mac" can reach it.
 
 See [CONFIGURATION.md](CONFIGURATION.md) for what goes in `.env` and why.

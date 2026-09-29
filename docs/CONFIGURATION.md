@@ -9,6 +9,7 @@ nothing configured just shows "Not connected yet" instead of breaking the rest o
 | `ICLOUD_EMAIL`, `ICLOUD_APP_PASSWORD` | Today / calendar agenda | your iCloud calendars |
 | `ICS_FEEDS` | Today / calendar agenda | any calendar you only *subscribe* to (course timetable, a Google Calendar) |
 | `PORT` | — | which port the server listens on (default `3000`) |
+| `HOST` | — | reach the dashboard from your other devices too (see [§ Other devices](#other-devices-tailscale)) |
 
 ## Garmin
 
@@ -98,6 +99,33 @@ Only titles that actually look like `CODE - NAME` get rewritten (a course code, 
 else, like an assignment deadline title, is left untouched rather than guessed at. See
 `lib/calendar.js` (`tidyTitle`, `tidyWhere`, `tidyKind`) if a different feed's format needs different
 handling.
+
+## Other devices (Tailscale)
+
+By default the server only answers on `127.0.0.1` — reachable from this Mac, nothing else, which is
+what keeps the lack of a login safe. `HOST` binds a **second** listener alongside that (the Mac itself
+can still always use `localhost`), so another device you trust can reach it too.
+
+```
+HOST=100.73.58.127
+```
+
+**Use a [Tailscale](https://tailscale.com) IP here, not your Wi-Fi/LAN IP or `0.0.0.0`.** Tailscale is
+a free, private mesh network: install it on this Mac and your phone, sign in with the same account on
+both, and only those specific devices can ever reach each other — not your whole home Wi-Fi, not the
+internet. Binding to a raw LAN IP or `0.0.0.0` instead would make it reachable by *anything* on the
+same Wi-Fi network (roommates, guests, smart-home devices), with still no login to stop them.
+
+1. Install Tailscale on this Mac and on your phone; sign in with the same account on both.
+2. Find this Mac's Tailscale IP: `tailscale status` (menu bar app → that, or
+   `/Applications/Tailscale.app/Contents/MacOS/Tailscale status`), or `tailscale ip -4` for just the IP.
+3. Set `HOST` to that IP and restart the server (`launchctl kickstart -k
+   gui/501/com.georgehadji.dashboard` — see [§ Running at login](#running-at-login-macos) — or
+   `npm start` if running it manually).
+4. On your phone, with Tailscale connected, open `http://<that IP>:3000`.
+
+If Tailscale ever reassigns this Mac's IP (rare — only really happens if the device is removed and
+re-added to your tailnet), check `tailscale ip -4` again and update `HOST` to match.
 
 ## Data on disk
 

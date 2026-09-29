@@ -72,6 +72,9 @@ if (process.env.GARMIN_EMAIL) {
   setInterval(syncGarmin, 60 * 60 * 1000);
 }
 
-// 127.0.0.1 only: no auth, and .env holds your logins. Add auth before hosting it anywhere.
+// Always reachable from this Mac at localhost. HOST additionally binds a second listener there —
+// e.g. a Tailscale IP, so your other tailnet devices can reach it too — without ever binding to the
+// open LAN/Wi-Fi interface. There's still no login: only put a HOST here you trust as much as this Mac.
 const port = process.env.PORT || 3000;
 app.listen(port, '127.0.0.1', () => console.log(`Dashboard → http://localhost:${port}`));
+if (process.env.HOST) app.listen(port, process.env.HOST, () => console.log(`Dashboard → http://${process.env.HOST}:${port}`));

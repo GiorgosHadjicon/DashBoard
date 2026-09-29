@@ -48,12 +48,15 @@ source you've configured (iCloud calendars + any `ICS_FEEDS`).
 
 ## Security
 
-- Binds to `127.0.0.1` only — not reachable from your network as shipped.
+- Binds to `127.0.0.1` only by default — not reachable from your network as shipped.
 - **No authentication.** Anyone who can reach the port can read and write everything.
 - `.env` holds real credentials and private feed URLs (treat those URLs like passwords). It's
   gitignored — never commit it, and never paste its contents somewhere public.
-- If you ever want this reachable from your phone or another device, add authentication first — see
-  [ARCHITECTURE.md § Security posture](docs/ARCHITECTURE.md#security-posture).
+- To reach it from another device (e.g. your phone), the app-level answer isn't authentication —
+  it's [Tailscale](docs/CONFIGURATION.md#other-devices-tailscale): only your own signed-in devices
+  can connect, so there's nothing to log into on the dashboard itself. Don't bind `HOST` to your raw
+  LAN IP or `0.0.0.0` instead — that opens it to your whole Wi-Fi network with still no login.
+- See [ARCHITECTURE.md § Security posture](docs/ARCHITECTURE.md#security-posture) for the full picture.
 
 ## Known gaps
 
