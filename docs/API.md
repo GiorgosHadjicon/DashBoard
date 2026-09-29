@@ -80,8 +80,19 @@ fetch (bad/missing credentials, the upstream service down) returns `502 { "error
 
 | Path | Source | Shape |
 |---|---|---|
-| `GET /api/garmin` | `lib/garmin.js` | `{ steps, sleepHours, restingHr, weekAvgRestingHr, activities: [{ name, type, start, km, min }] }` — any field can be `null` if that metric hasn't synced |
+| `GET /api/garmin` | `lib/garmin.js` | `{ steps, sleepHours, restingHr, weekAvgRestingHr, activities: [{ name, type, start, km, min, source: "Garmin" }] }` — any field can be `null` if that metric hasn't synced. Also auto-refreshed hourly in the background (`server.js`), independent of anyone requesting it |
 | `GET /api/calendar` | `lib/calendar.js` | `[{ title, cal, start, end, allDay, where, kind }, …]`, sorted by `start`. `cal` is the source calendar's name; `kind` (Lecture/Tutorial/Lab/Online) is only set for `ICS_FEEDS` events |
+| `GET /api/strava` | `lib/strava.js` | `[{ name, type, start, km, min, source: "Strava" }, …]` — your last 8 activities. `502` with `"Strava not connected — visit /auth/strava/start to connect it"` until you connect it (see [CONFIGURATION.md](CONFIGURATION.md#strava)) |
+
+### Strava OAuth
+
+Not part of the JSON API — these two redirect/render HTML, since they're meant to be opened in a
+browser, not called from `app.js`:
+
+| Path | Does |
+|---|---|
+| `GET /auth/strava/start` | Redirects to Strava's authorization page. `400` if `STRAVA_CLIENT_ID` isn't set |
+| `GET /auth/strava/callback` | Strava redirects here after you approve/deny; trades the `code` for tokens (stored in `dashboard.db`, not `.env`) and redirects to `/#fitness`. `400` if you denied access, `502` if the token exchange failed |
 
 ## One Piece card database
 

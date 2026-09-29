@@ -8,6 +8,7 @@ nothing configured just shows "Not connected yet" instead of breaking the rest o
 | `GARMIN_EMAIL`, `GARMIN_PASSWORD` | Fitness → Garmin | steps, sleep, resting heart rate, recent activities |
 | `ICLOUD_EMAIL`, `ICLOUD_APP_PASSWORD` | Today / calendar agenda | your iCloud calendars |
 | `ICS_FEEDS` | Today / calendar agenda | any calendar you only *subscribe* to (course timetable, a Google Calendar) |
+| `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` | Fitness → Garmin | Strava activities alongside Garmin's |
 | `PORT` | — | which port the server listens on (default `3000`) |
 
 ## Garmin
@@ -25,6 +26,34 @@ no official public API for personal accounts. This means:
 - Two-factor login on the Garmin account isn't handled. If your login has 2FA, this won't authenticate.
 - A successful login is cached to `data/garmin-tokens` (gitignored) so the server doesn't re-log-in on
   every request — only when the cached session stops working.
+- The server refreshes Garmin data itself **every hour** in the background (`server.js`, guarded by
+  `GARMIN_EMAIL` being set) — the Garmin panel is never more than an hour stale even if you haven't
+  opened it, no manual refresh needed. The "Refresh Garmin" button still forces an immediate check.
+
+## Strava
+
+```
+STRAVA_CLIENT_ID=123456
+STRAVA_CLIENT_SECRET=abcdef0123456789abcdef0123456789abcdef01
+```
+
+Strava's API is OAuth2, so there's no password to type in — you authorize once through Strava's own
+site and the server keeps a refresh token (in `data/dashboard.db`, not `.env` — see [`lib/strava.js`](../lib/strava.js)).
+
+1. Go to [strava.com/settings/api](https://www.strava.com/settings/api) and create an application.
+   - **Authorization Callback Domain**: `localhost` (just the domain, no `http://` or port).
+   - Anything else (name, website, icon) can be whatever you like — it's only used on the
+     authorization screen you see yourself.
+2. Copy the **Client ID** and **Client Secret** into `.env` as above, then restart the server
+   (`launchctl kickstart -k gui/501/com.georgehadji.dashboard` — see
+   [§ Running at login](#running-at-login-macos) — or `npm start` if you're running it manually).
+3. Open the dashboard → **Fitness → Garmin** → click **Connect Strava**. You'll land on Strava's own
+   site to authorize, then land back on the dashboard with Strava's activities merged into "Recent
+   activities" (each tagged **Garmin** or **Strava**).
+
+If your watch already auto-uploads to Strava, connecting both here means you may see the same workout
+twice — once from each source. Nothing deduplicates them, since there's no reliable way to know two
+differently-named entries are the same activity without guessing.
 
 ## iCloud Calendar (CalDAV)
 
