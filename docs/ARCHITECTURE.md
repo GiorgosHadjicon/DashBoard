@@ -16,7 +16,9 @@ Node ≥ 22.5, Express, SQLite, and a frontend with **no build step, no framewor
 
 The only real dependencies are things a personal server genuinely can't do without: `express` (routing),
 `tsdav` + `node-ical` (CalDAV + iCalendar parsing — writing an RFC 4791 client from scratch isn't a
-reasonable Tuesday), and `garmin-connect` (Garmin has no public API for personal accounts).
+reasonable Tuesday), `garmin-connect` (Garmin has no public API for personal accounts), and
+`pdf-parse` + `mammoth` (extracting text from an imported PDF/DOCX CV — binary document formats
+aren't a "few lines" problem either).
 
 ## File map
 

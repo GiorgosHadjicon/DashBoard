@@ -156,6 +156,13 @@ ul.list li > details.fold { flex-basis: 100%; margin: 10px 0 0; }
 
 /* ---- CV: a literal page, not a card — deliberately fixed white/black regardless of the app's
    theme, since this is the one thing meant to be read/printed the same way every time. ---- */
+.cvDrop { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; padding: 28px 20px; margin-bottom: 16px;
+  border: 2px dashed var(--line); border-radius: var(--r); cursor: pointer; color: var(--muted); transition: border-color .15s, background-color .15s, transform .15s; }
+.cvDrop svg { width: 26px; height: 26px; color: var(--accent); margin-bottom: 4px; }
+.cvDrop b { font: 600 .95rem var(--body); color: var(--fg); }
+.cvDrop span { font-size: .82rem; }
+.cvDrop:hover { border-color: var(--accent); }
+.cvDrop.drag { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); transform: scale(1.01); }
 .cvEdit { width: 100%; min-height: 60vh; font-family: ui-monospace, monospace; font-size: .9rem; line-height: 1.6; resize: vertical; padding: 16px 20px; border-radius: var(--r); }
 .cv-page { background: #fff; color: #0d1b2e; border-radius: var(--r); padding: 48px 56px; max-width: 760px; box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 0 1px var(--line); line-height: 1.6; }
 .cv-page h1 { font-size: 2rem; }

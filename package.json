@@ -13,7 +13,9 @@
   "dependencies": {
     "express": "^5.1.0",
     "garmin-connect": "^1.6.2",
+    "mammoth": "^1.13.0",
     "node-ical": "^0.27.2",
+    "pdf-parse": "^2.4.5",
     "tsdav": "^2.1.0"
   }
 }

@@ -5,6 +5,7 @@ try { process.loadEnvFile('.env'); } catch { /* no .env yet: integrations will s
 const { garminToday } = await import('./lib/garmin.js');
 const { upcomingEvents } = await import('./lib/calendar.js');
 const { initCardsSchema, syncCards, searchCards, cardsMeta } = await import('./lib/cards.js');
+const { extractText } = await import('./lib/cvImport.js');
 
 mkdirSync('data', { recursive: true });
 const db = new DatabaseSync('data/dashboard.db');
@@ -14,7 +15,7 @@ initCardsSchema(db);
 // One generic JSON-doc store for everything the user types in by hand.
 const KINDS = new Set(['deadline', 'deck', 'match', 'roadmap', 'meal', 'workout', 'lift', 'cv']);
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '15mb' })); // raised for CV imports: a PDF/DOCX arrives base64-encoded in one request
 
 // The page itself is never cached (some mobile browsers otherwise restore a stale copy from memory
 // on tab-switch, skipping the network entirely) and always points at this server-run's own version
@@ -56,6 +57,15 @@ app.get('/api/cards/byId', (req, res) => {
 });
 app.post('/api/cards/sync', async (req, res) => {
   try { res.json(await syncCards(db)); } catch (e) { res.status(502).json({ error: e.message }); }
+});
+
+// CV import: pulls plain text out of an uploaded PDF/DOCX. .txt/.md never hit this — the browser
+// reads those itself — this is only for formats that need real parsing.
+app.post('/api/cv/extract', async (req, res) => {
+  const { filename, base64 } = req.body ?? {};
+  if (!filename || !base64) return res.status(400).json({ error: 'filename and base64 required' });
+  try { res.json({ text: await extractText(Buffer.from(base64, 'base64'), filename) }); }
+  catch (e) { res.status(422).json({ error: e.message }); }
 });
 
 // External integrations: cached 10 min so tab-switching doesn't hammer Garmin/iCloud.

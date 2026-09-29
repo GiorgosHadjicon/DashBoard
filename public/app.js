@@ -350,15 +350,45 @@ you@example.com · +353 00 000 0000 · linkedin.com/in/you
 **Project name** — one line description`;
 let cvEditing = false;
 
+// .txt/.md are read directly in the browser; .pdf/.docx need real parsing, so those go to the server
+// (base64 in the request body — no multipart upload plumbing needed for one small file).
+function readCvFile(file) {
+  if (!file) return;
+  const setCv = (text) => { const ta = document.querySelector('textarea[name=text]'); if (ta) ta.value = text; };
+  const ext = file.name.toLowerCase().split('.').pop();
+  if (ext === 'txt' || ext === 'md') {
+    const reader = new FileReader();
+    reader.onload = () => setCv(reader.result);
+    reader.readAsText(file);
+    return;
+  }
+  if (ext !== 'pdf' && ext !== 'docx') return showToast(`Can't read .${ext} files — try .txt, .md, .pdf or .docx.`, 'error');
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const { text, error } = await fetch('/api/cv/extract', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, base64: reader.result.split(',')[1] }),
+      }).then((r) => r.json());
+      if (error) throw new Error(error);
+      setCv(text);
+    } catch (e) { showToast(e.message, 'error'); }
+  };
+  reader.readAsDataURL(file);
+}
+
 views.cv = async () => {
   const doc = (await list('cv'))[0];
   if (cvEditing || !doc) return `<h2 class="no-print">CV</h2>
     <form data-submit="saveCv">
-      <div class="row"><label class="ghost">Import a .txt/.md file<input type="file" accept=".txt,.md,text/plain,text/markdown" data-change="importCvFile" hidden></label></div>
+      <label class="cvDrop" data-drop="dropCvFile">${ICON('<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>')}
+        <b>Import your CV</b><span class="muted">TXT, MD, PDF or DOCX — click to browse, or drag one here</span>
+        <input type="file" accept=".txt,.md,.pdf,.docx,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" data-change="importCvFile" hidden>
+      </label>
       <textarea name="text" class="cvEdit" spellcheck="false">${esc(doc?.text ?? CV_TEMPLATE)}</textarea>
       <div class="row"><button>Save</button>${doc ? `<button type="button" class="ghost" data-click="cancelCv">Cancel</button>` : ''}</div>
       <p class="muted small">Plain text: "# Name" for the title, "## Section" for a heading, "- item" for a bullet, "**bold**" for bold.
-      Have a PDF or Word CV instead? Open it, copy the text, and paste it above.</p>
+      A PDF/DOCX import brings in the words, not the formatting — mark up the headings and bullets afterward.</p>
     </form>`;
   return `<h2 class="no-print">CV</h2>
   <div class="row no-print"><button class="ghost" data-click="editCv">Edit</button><button data-click="printCv">Print / Save as PDF</button></div>
@@ -490,15 +520,8 @@ const actions = {
     cvEditing = false;
   },
   printCv: () => window.print(),
-  importCvFile: (el) => {
-    const file = el.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => { const ta = document.querySelector('textarea[name=text]'); if (ta) ta.value = reader.result; };
-    reader.readAsText(file);
-    el.value = ''; // lets the same file be re-picked later
-    return 'skip'; // the read finishes after this returns; a render() now would just overwrite it with the unsaved doc
-  },
+  importCvFile: (el) => { readCvFile(el.files[0]); el.value = ''; return 'skip'; }, // skip: the read finishes after this returns, and a render() now would overwrite it with the still-unsaved doc
+  dropCvFile: (e) => { readCvFile(e.dataTransfer.files[0]); return 'skip'; },
   fitTab: (el) => { fitTab = el.dataset.tab; },
   dietDay: (el) => { dietDay = el.dataset.day; },
   saveMeal: async (el) => {
@@ -526,6 +549,10 @@ main.addEventListener('click', (e) => { const t = e.target.closest('[data-click]
 main.addEventListener('change', (e) => { const t = e.target.closest('[data-change]'); if (t) run(t.dataset.change, t); });
 main.addEventListener('input', (e) => { const t = e.target.closest('[data-input]'); if (t) run(t.dataset.input, t); });
 main.addEventListener('submit', (e) => { e.preventDefault(); run(e.target.dataset.submit, Object.fromEntries(new FormData(e.target))); });
+// drag-and-drop onto a [data-drop] zone (the CV importer)
+main.addEventListener('dragover', (e) => { const t = e.target.closest('[data-drop]'); if (t) { e.preventDefault(); t.classList.add('drag'); } });
+main.addEventListener('dragleave', (e) => { const t = e.target.closest('[data-drop]'); if (t) t.classList.remove('drag'); });
+main.addEventListener('drop', (e) => { const t = e.target.closest('[data-drop]'); if (t) { e.preventDefault(); t.classList.remove('drag'); run(t.dataset.drop, e); } });
 // close a picker's dropdown when focus leaves it without a pick
 main.addEventListener('focusout', (e) => {
   const picker = e.target.closest('.picker');

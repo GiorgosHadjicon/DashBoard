@@ -79,6 +79,23 @@ markdown-ish source rendered by `cvHtml()` in `public/logic.js` (`# ` name, `## 
 { "text": "# Jane Doe\nyou@example.com\n\n## Education\n**Trinity College Dublin** — BA…" }
 ```
 
+### CV import — `POST /api/cv/extract`
+
+Pulls plain text out of an uploaded PDF or Word file (see `lib/cvImport.js`, via `pdf-parse` and
+`mammoth`). `.txt`/`.md` never reach this — the browser reads those itself with `FileReader`, no
+round trip needed.
+
+```jsonc
+// request
+{ "filename": "cv.pdf", "base64": "JVBERi0xLjQK…" }  // the whole file, base64-encoded
+// response
+{ "text": "Jane Doe\nyou@example.com\n…" }  // plain text only — headings/bullets/bold don't survive
+```
+
+`400` if `filename`/`base64` is missing, `422` with `{ "error": "Unsupported file type: …" }` for
+anything other than `.pdf`/`.docx`. The body limit is raised to 15MB globally in `server.js` to fit
+a base64-encoded file in one request.
+
 ## Live integrations
 
 Each of these wraps a `lib/*.js` module and caches its result **in memory for 10 minutes** (a
