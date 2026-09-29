@@ -98,7 +98,13 @@ const agenda = (cal, days) => {
   if (cal instanceof Error) return notConnected(cal);
   const byDay = {};
   for (const e of cal) { const k = isoDate(new Date(e.start)); if (daysUntil(k) >= 0 && daysUntil(k) < days) (byDay[k] ??= []).push(e); }
-  return Object.entries(byDay).map(([k, es]) => `<div class="agenda"><h4>${dayLabel(k)}</h4>${es.map((e) => `<p><span class="time">${fmtTime(e)}</span>${e.kind ? `<span class="pill">${esc(e.kind)}</span>` : ''}${esc(e.title)}${e.where ? ` <span class="muted">${esc(e.where)}</span>` : ''}</p>`).join('')}</div>`).join('') || empty('Nothing scheduled.');
+  const dayBlock = (k, es) => `<div class="agenda"><h4>${dayLabel(k)}</h4>${es.map((e) => `<p><span class="time">${fmtTime(e)}</span>${e.kind ? `<span class="pill">${esc(e.kind)}</span>` : ''}${esc(e.title)}${e.where ? ` <span class="muted">${esc(e.where)}</span>` : ''}</p>`).join('') || empty('Nothing scheduled.')}</div>`;
+  const todayKey = isoDate();
+  const laterDays = Object.keys(byDay).filter((k) => k !== todayKey);
+  if (!laterDays.length && !byDay[todayKey]) return empty('Nothing scheduled.');
+  // On phone, only today's own agenda shows by default; the rest of the week is one tap away.
+  return dayBlock(todayKey, byDay[todayKey] ?? []) + (laterDays.length
+    ? `<details class="fold mobile-fold"><summary>Upcoming days</summary>${laterDays.map((k) => dayBlock(k, byDay[k])).join('')}</details>` : '');
 };
 
 // ---- views
@@ -144,7 +150,7 @@ views.today = async () => {
       <ul class="list">${open.slice(0, 5).map((d) => deadlineRow(d)).join('') || empty('Nothing due. Enjoy it.')}</ul>
       <h3>Next 7 days</h3>${agenda(cal, 7)}
     </div>
-    <details class="fold today-more">
+    <details class="fold mobile-fold">
       <summary>More for today</summary>
       <h3>Workout today</h3>
       ${lifts.map((w) => `<p>${esc(w.exercise)} <span class="muted">${esc(w.sets)}×${esc(w.reps)} · ${esc(w.weight)}kg</span></p>`).join('') || empty('Rest day.')}

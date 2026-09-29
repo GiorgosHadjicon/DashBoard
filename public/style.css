@@ -56,7 +56,7 @@ a.tile:hover { border-color: var(--accent); transform: translateY(-2px); }
 .tile b { display: block; font: 700 2.4rem/1.1 var(--head); letter-spacing: -.03em; }
 .tile span { color: var(--muted); font-size: .85rem; }
 .two { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 48px; }
-.agenda p { display: flex; gap: 12px; margin: 0 0 4px; }
+.agenda p { display: flex; gap: 12px; margin: 0 0 4px; align-items: flex-start; }
 .time { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 8.5em; }
 
 /* ---- forms & buttons ---- */
@@ -87,10 +87,11 @@ details.fold summary { cursor: pointer; color: var(--muted); font-weight: 600; p
 details.fold summary:hover { color: var(--fg); }
 details.fold[open] summary { margin-bottom: 10px; }
 
-/* Today's "More" section: a phone-only collapse. Desktop always shows it open and plain (no summary,
-   ignores the closed state) — phone's @media block below restores the native collapse behaviour. */
-details.today-more > summary { display: none; }
-details.today-more > * { display: block; }
+/* A phone-only collapse (Today's "More" section, the calendar's later days): desktop always shows
+   it open and plain (no summary, ignores the closed state) — the @media block below restores native
+   collapse behaviour there. */
+details.mobile-fold > summary { display: none; }
+details.mobile-fold > * { display: block; }
 
 /* segmented switch + day pills */
 .seg { display: inline-flex; padding: 4px; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 99px; margin-bottom: 22px; }
@@ -162,8 +163,13 @@ ul.list li > details.fold { flex-basis: 100%; margin: 10px 0 0; }
   table { display: block; overflow-x: auto; }
 
   /* Today: only "Due soon" and "Next 7 days" show by default — everything else (workout, food,
-     body, roadmap, One Piece) is one tap away instead of a long scroll, same data either way. */
-  details.today-more > summary { display: block; }
-  details.today-more:not([open]) > *:not(summary) { display: none; }
+     body, roadmap, One Piece) is one tap away instead of a long scroll, same data either way.
+     Calendar agenda: only today's own schedule shows; later days are the same one tap away. */
+  details.mobile-fold > summary { display: block; }
+  details.mobile-fold:not([open]) > *:not(summary) { display: none; }
+
+  /* Quick-add forms: stacked full-width fields instead of everything squeezed onto one cramped row. */
+  form.row { flex-direction: column; align-items: stretch; }
+  form.row .grow { flex: none; } /* .grow means "expand sideways" in the row layout; irrelevant once stacked */
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
