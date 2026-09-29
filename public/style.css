@@ -57,7 +57,9 @@ a.tile:hover { border-color: var(--accent); transform: translateY(-2px); }
 .tile span { color: var(--muted); font-size: .85rem; }
 .two { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 48px; }
 .agenda p { display: flex; gap: 12px; margin: 0 0 4px; align-items: flex-start; }
-.time { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 8.5em; }
+.time { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 8.5em; flex-shrink: 0; }
+.agenda .kind { display: inline-block; min-width: 4.8em; flex-shrink: 0; } /* reserved even when empty, so the title always starts at the same spot */
+.agenda .what { flex: 1; }
 
 /* ---- forms & buttons ---- */
 form.row, .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
