@@ -41,6 +41,8 @@ npm test               # runs the logic.js test suite (node:assert, no framework
 The calendar isn't a separate tab — it's folded into Today's "Next 7 days" agenda, merged from every
 source you've configured (iCloud calendars + any `ICS_FEEDS`).
 
+On a phone the tab bar sits at the bottom and scrolls sideways when the tabs don't all fit.
+
 ## Documentation
 
 - **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** — every `.env` variable: what it does, how to get
