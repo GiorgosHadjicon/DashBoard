@@ -10,7 +10,7 @@ One table (`docs`, columns `id`, `kind`, `data` as a JSON blob) backs every hand
 must be one of:
 
 ```
-deadline · deck · match · roadmap · meal · workout · lift · cv · milestone
+deadline · deck · match · roadmap · meal · workout · lift · cv · milestone · todo
 ```
 
 Any other value → `404 { "error": "unknown kind" }` (enforced in `server.js` via `app.param`).
@@ -85,6 +85,12 @@ than everything else that's due.
 **`lift`** — one row per exercise per day, written whenever a workout's weight changes or "Log" is pressed
 ```jsonc
 { "exercise": "Bench press", "weight": 62.5, "reps": "8", "date": "2026-09-29" }
+```
+
+**`todo`** — a general to-do, own tab, unrelated to school (that's what `deadline` is for): no due
+date or module, just text and done
+```jsonc
+{ "text": "Book dentist appointment", "done": false }
 ```
 
 **`cv`** — a single record (the frontend always reads/writes `list('cv')[0]`); `text` is plain

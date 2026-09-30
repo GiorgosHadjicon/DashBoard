@@ -103,6 +103,14 @@ const addDeadlineForm = `<form class="row" data-submit="addDeadline"><input clas
   <select name="course" aria-label="Module"><option value="">No module</option>${MODULES.map((m) => `<option>${esc(m)}</option>`).join('')}</select>
   <input type="date" name="due" required aria-label="Due date"><button>Add</button></form>`;
 
+// A plain to-do: just text and done, no due date or module — for anything that isn't a school
+// deadline (deliberately not reusing `deadline` for this: a to-do never has a due date to sort by).
+const todoRow = (t) => `<li class="${t.done ? 'done' : ''}">
+  <input type="checkbox" data-change="toggleDone" data-kind="todo" data-id="${t.id}" ${t.done ? 'checked' : ''} aria-label="Done">
+  <div class="grow">${esc(t.text)}</div>
+  <button class="x" data-click="del" data-kind="todo" data-id="${t.id}" title="Delete" aria-label="Delete">×</button></li>`;
+const addTodoForm = `<form class="row" data-submit="addTodo"><input class="grow" name="text" placeholder="Add a to-do…" required><button>Add</button></form>`;
+
 const agenda = (cal, days) => {
   if (cal instanceof Error) return notConnected(cal);
   const byDay = {};
@@ -192,6 +200,15 @@ views.school = async () => {
   ${groups.map(([t, ds]) => (ds.length ? `<h3>${t}</h3><ul class="list">${ds.map((d) => deadlineRow(d, true)).join('')}</ul>` : '')).join('') || empty('No deadlines yet. Add your first one above.')}
   ${done.length ? `<details class="fold"><summary>Completed (${done.length})</summary><ul class="list">${done.map((d) => deadlineRow(d, true)).join('')}</ul></details>` : ''}
   ${Object.entries(msByCourse).map(([course, ms]) => `<h3>${esc(course)} — milestones</h3><ul class="list">${ms.sort(by).map((m) => milestoneRow(m, true)).join('')}</ul>`).join('')}`;
+};
+
+views.todo = async () => {
+  const items = await list('todo');
+  const open = items.filter((t) => !t.done);
+  const done = items.filter((t) => t.done).reverse();
+  return `<h2>To-Do</h2>${addTodoForm}
+  <ul class="list">${open.map(todoRow).join('') || empty('Nothing on your list. Add one above.')}</ul>
+  ${done.length ? `<details class="fold"><summary>Completed (${done.length})</summary><ul class="list">${done.map(todoRow).join('')}</ul></details>` : ''}`;
 };
 
 // ---- Fitness = three switchable panels
@@ -472,6 +489,7 @@ const setWeight = async (w, weight) => { const upd = { ...w, weight }; await api
 
 const actions = {
   addDeadline: (f) => api('POST', 'deadline', null, { ...f, done: false }),
+  addTodo: (f) => api('POST', 'todo', null, { ...f, done: false }),
   toggleDone: (el) => { const kind = el.dataset.kind; const d = get(kind, el.dataset.id); return api('PUT', kind, d.id, { ...d, done: el.checked }); },
   del: (el) => {
     if (el.dataset.kind === 'deck' && !confirm('Delete this deck? Its logged matches stay in the totals.')) return;
@@ -651,6 +669,7 @@ main.addEventListener('toggle', (e) => { const d = e.target.closest('details[dat
 const ICON = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const TABS = {
   today: ['Today', ICON('<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>')],
+  todo: ['To-Do', ICON('<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>')],
   school: ['School', ICON('<path d="M4 5a2 2 0 0 1 2-2h14v15H6a2 2 0 0 0-2 2zM4 20a2 2 0 0 0 2 1h14"/>')],
   fitness: ['Fitness', ICON('<path d="M3 12h4l3-7 4 14 3-7h4"/>')],
   optcg: ['One Piece', ICON('<rect x="5" y="3" width="11" height="15" rx="2"/><path d="M9 21h8a3 3 0 0 0 3-3V8"/>')],

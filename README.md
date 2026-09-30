@@ -31,6 +31,7 @@ npm test               # runs the logic.js test suite (node:assert, no framework
 |---|---|---|
 | **Today** | A daily summary: due-soon deadlines, the next 7 days across every calendar, today's workout and meals, your MyFirstHack progress, and your best/toughest One Piece match-ups | everything below, pulled together |
 | **School** | Deadlines grouped as Overdue / This week / Later, module picked from a list instead of typed; a fixed course's project milestones grouped in their own section | typed in |
+| **To-Do** | A plain checklist for anything that isn't school — no due date, just text and done | typed in |
 | **Fitness** | Three panels: **Workouts** (weights with +/− steppers and a progress history), **Diet** (a per-day meal plan), **Garmin** (steps, sleep, resting heart rate, recent activities) | typed in (Workouts, Diet) · Garmin Connect (Garmin), auto-refreshed hourly |
 | **One Piece** | Deck builder with real leader/card data (search, thumbnails, import/export as text) and a match-up tracker (win % overall, going 1st, going 2nd, per opponent leader) | typed in + [optcgapi.com](https://optcgapi.com)'s card database |
 | **MyFirstHack** | A roadmap of the course, seeded from its site, with per-module progress bars | seeded once, then edited by hand |
