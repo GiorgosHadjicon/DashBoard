@@ -133,9 +133,9 @@ const agenda = (cal, days) => {
 const views = {};
 
 views.today = async () => {
-  const [dl, milestones, meals, plan, cal, gar, road, matches] = await Promise.all([
+  const [dl, milestones, meals, plan, cal, gar, fixture, road, matches] = await Promise.all([
     list('deadline'), list('milestone'), list('meal'), list('workout'),
-    live('calendar').catch((e) => e), live('garmin').catch((e) => e),
+    live('calendar').catch((e) => e), live('garmin').catch((e) => e), live('lfc-fixture').catch((e) => e),
     roadmapItems(), list('match'),
   ]);
   const day = todayName();
@@ -168,6 +168,8 @@ views.today = async () => {
     <a class="tile" href="#fitness"><b>${gar instanceof Error ? '—' : gar.steps ?? '—'}</b><span>steps today</span></a>
     <a class="tile" href="#roadmap"><b>${Math.round((100 * rDone) / rAll)}%</b><span>MyFirstHack · ${rDone}/${rAll} days</span></a>
     <a class="tile" href="#optcg"><b>${matches.length ? pct(wins, matches.length - wins) + '%' : '—'}</b><span>One Piece win rate · ${matches.length} games</span></a>
+    <a class="tile" href="#liverpool"><b>${fixture instanceof Error || !fixture ? '—' : new Date(fixture.kickoff).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</b>
+      <span>${fixture instanceof Error || !fixture ? 'next LFC game' : `vs ${esc(fixture.opponent)} (${fixture.home ? 'H' : 'A'})`}</span></a>
   </div>
   <div class="two">
     <div>
@@ -371,6 +373,31 @@ views.roadmap = async () => {
       <div class="bar"><i style="width:${Math.round((100 * i.done) / i.days)}%"></i></div></li>`).join('')}</ul>`; }).join('')}
   <details class="fold"><summary>Add your own item</summary>
     <form class="row" data-submit="addRoadmap"><input name="phase" placeholder="Group (e.g. Side projects)" required><input class="grow" name="title" placeholder="Title" required><input name="sub" placeholder="Description"><input type="number" name="days" min="1" value="1" title="Total steps" aria-label="Total steps"><button>Add</button></form></details>`;
+};
+
+// Fixture (TheSportsDB), news (This Is Anfield's RSS) and injuries (scraped from physioroom.com —
+// see lib/football.js for why that one's the fragile piece) are three separate live() endpoints,
+// so one going down doesn't take the other two with it.
+views.liverpool = async () => {
+  const [fixture, inj, articles] = await Promise.all([
+    live('lfc-fixture').catch((e) => e), live('lfc-injuries').catch((e) => e), live('lfc-news').catch((e) => e),
+  ]);
+  const fixtureBody = fixture instanceof Error ? notConnected(fixture)
+    : !fixture ? empty('No upcoming fixture found.')
+    : (() => {
+        const d = new Date(fixture.kickoff);
+        const vs = fixture.home ? `Liverpool <span class="muted">vs</span> ${esc(fixture.opponent)}` : `${esc(fixture.opponent)} <span class="muted">vs</span> Liverpool`;
+        return `<p><b>${vs}</b><br><span class="muted">${esc(fixture.competition)} · ${d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${esc(fixture.venue)}</span></p>`;
+      })();
+  const injBody = inj instanceof Error ? notConnected(inj)
+    : !inj.length ? empty('No reported injuries.')
+    : `<ul class="list">${inj.map((i) => `<li><div class="grow">${esc(i.player)}</div><span class="pill">${esc(i.injury)}</span></li>`).join('')}</ul>`;
+  const newsBody = articles instanceof Error ? notConnected(articles)
+    : `<ul class="list">${articles.map((a) => `<li><a class="grow" href="${esc(a.link)}" target="_blank" rel="noopener">${esc(a.title)}</a><span class="muted">${new Date(a.pubDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span></li>`).join('') || empty('No news right now.')}</ul>`;
+  return `<h2>Liverpool FC</h2>
+  <h3>Next game</h3>${fixtureBody}
+  <h3>Injuries</h3>${injBody}
+  <h3>News</h3>${newsBody}`;
 };
 
 // Skeleton shown the first time there's no CV yet, so Edit doesn't open on a blank page.
@@ -684,6 +711,7 @@ const TABS = {
   fitness: ['Fitness', ICON('<path d="M3 12h4l3-7 4 14 3-7h4"/>')],
   optcg: ['One Piece', ICON('<rect x="5" y="3" width="11" height="15" rx="2"/><path d="M9 21h8a3 3 0 0 0 3-3V8"/>')],
   roadmap: ['MyFirstHack', ICON('<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M6 16V9a3 3 0 0 1 3-3h7"/>')],
+  liverpool: ['Liverpool', ICON('<circle cx="12" cy="12" r="9"/><path d="M8 10l4-3 4 3-1.5 5h-5z"/><path d="M12 15v4M9 6l3 1 3-1"/>')],
   cv: ['CV', ICON('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>')],
 };
 const tab = () => (views[location.hash.slice(1)] ? location.hash.slice(1) : 'today');

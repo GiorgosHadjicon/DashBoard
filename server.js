@@ -6,6 +6,7 @@ const { garminToday } = await import('./lib/garmin.js');
 const { upcomingEvents } = await import('./lib/calendar.js');
 const { initCardsSchema, syncCards, searchCards, cardsMeta } = await import('./lib/cards.js');
 const { extractText, docxToStyledHtml } = await import('./lib/cvImport.js');
+const { nextFixture, news: lfcNews, injuries: lfcInjuries } = await import('./lib/football.js');
 
 mkdirSync('data', { recursive: true });
 const db = new DatabaseSync('data/dashboard.db');
@@ -85,6 +86,9 @@ const live = (name, fn) => app.get(`/api/${name}`, async (req, res) => {
 });
 live('garmin', garminToday);
 live('calendar', upcomingEvents);
+live('lfc-fixture', nextFixture);
+live('lfc-news', lfcNews);
+live('lfc-injuries', lfcInjuries);
 
 // Keeps the Garmin cache warm even when nobody has the tab open, so it's never more than an hour stale.
 if (process.env.GARMIN_EMAIL) {
