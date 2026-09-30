@@ -88,9 +88,11 @@ than everything else that's due.
 ```
 
 **`todo`** — a general to-do, own tab, unrelated to school (that's what `deadline` is for): no due
-date or module, just text and done
+date or module, just text and done. `group` is optional free text (e.g. "Apply to") — items sharing
+a group are shown together under their own heading, sorted alphabetically by group; ungrouped items
+(`group` empty/absent) show first, with no heading
 ```jsonc
-{ "text": "Book dentist appointment", "done": false }
+{ "text": "Google", "group": "Apply to", "done": false }
 ```
 
 **`cv`** — a single record (the frontend always reads/writes `list('cv')[0]`); `text` is plain

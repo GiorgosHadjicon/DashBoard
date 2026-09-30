@@ -109,7 +109,12 @@ const todoRow = (t) => `<li class="${t.done ? 'done' : ''}">
   <input type="checkbox" data-change="toggleDone" data-kind="todo" data-id="${t.id}" ${t.done ? 'checked' : ''} aria-label="Done">
   <div class="grow">${esc(t.text)}</div>
   <button class="x" data-click="del" data-kind="todo" data-id="${t.id}" title="Delete" aria-label="Delete">×</button></li>`;
-const addTodoForm = `<form class="row" data-submit="addTodo"><input class="grow" name="text" placeholder="Add a to-do…" required><button>Add</button></form>`;
+// `group` is free text (e.g. "Apply to"), not a fixed list like MODULES — a datalist of groups
+// already in use just makes adding a second item to the same group a matter of typing a few letters.
+const addTodoForm = (groups) => `<form class="row" data-submit="addTodo"><input class="grow" name="text" placeholder="Add a to-do…" required>
+  <input name="group" list="todoGroups" placeholder="Group (optional)">
+  <datalist id="todoGroups">${groups.map((g) => `<option value="${esc(g)}">`).join('')}</datalist>
+  <button>Add</button></form>`;
 
 const agenda = (cal, days) => {
   if (cal instanceof Error) return notConnected(cal);
@@ -204,11 +209,16 @@ views.school = async () => {
 
 views.todo = async () => {
   const items = await list('todo');
-  const open = items.filter((t) => !t.done);
-  const done = items.filter((t) => t.done).reverse();
-  return `<h2>To-Do</h2>${addTodoForm}
-  <ul class="list">${open.map(todoRow).join('') || empty('Nothing on your list. Add one above.')}</ul>
-  ${done.length ? `<details class="fold"><summary>Completed (${done.length})</summary><ul class="list">${done.map(todoRow).join('')}</ul></details>` : ''}`;
+  const groups = [...new Set(items.map((t) => t.group).filter(Boolean))].sort();
+  const section = (its) => {
+    const open = its.filter((t) => !t.done), done = its.filter((t) => t.done).reverse();
+    return `<ul class="list">${open.map(todoRow).join('') || empty('All done.')}</ul>
+    ${done.length ? `<details class="fold"><summary>Completed (${done.length})</summary><ul class="list">${done.map(todoRow).join('')}</ul></details>` : ''}`;
+  };
+  const ungrouped = items.filter((t) => !t.group);
+  return `<h2>To-Do</h2>${addTodoForm(groups)}
+  ${ungrouped.length ? section(ungrouped) : (groups.length ? '' : empty('Nothing on your list. Add one above.'))}
+  ${groups.map((g) => `<h3>${esc(g)}</h3>${section(items.filter((t) => t.group === g))}`).join('')}`;
 };
 
 // ---- Fitness = three switchable panels
