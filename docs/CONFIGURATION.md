@@ -8,6 +8,7 @@ nothing configured just shows "Not connected yet" instead of breaking the rest o
 | `GARMIN_EMAIL`, `GARMIN_PASSWORD` | Fitness → Garmin | steps, sleep, resting heart rate, recent activities |
 | `ICLOUD_EMAIL`, `ICLOUD_APP_PASSWORD` | Today / calendar agenda | your iCloud calendars |
 | `ICS_FEEDS` | Today / calendar agenda | any calendar you only *subscribe* to (course timetable, a Google Calendar) |
+| `FOOTBALL_DATA_TOKEN` | Liverpool tab | optional: the next several fixtures instead of just one (see [§ Liverpool FC fixtures](#liverpool-fc-fixtures--football_data_token)) |
 | `PORT` | — | which port the server listens on (default `3000`) |
 | `HOST` | — | reach the dashboard from your other devices too (see [§ Other devices](#other-devices-tailscale)) |
 

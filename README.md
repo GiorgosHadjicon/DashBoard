@@ -36,7 +36,7 @@ npm test               # runs the logic.js test suite (node:assert, no framework
 | **One Piece** | Deck builder with real leader/card data (search, thumbnails, import/export as text) and a match-up tracker (win % overall, going 1st, going 2nd, per opponent leader) | typed in + [optcgapi.com](https://optcgapi.com)'s card database |
 | **MyFirstHack** | A roadmap of the course, seeded from its site, with per-module progress bars | seeded once, then edited by hand |
 | **CV** | Edit like a normal document — select text, click Bold/Heading/List, no typed syntax — then print/save-as-PDF; import an existing one (`.txt`, `.md`, `.pdf`, `.docx`) by picking or dragging it in. A `.docx` import is shown with its real fonts/colours/spacing, not our own styling | typed in, or imported |
-| **Liverpool** | Next fixture, current injuries and recent news | [TheSportsDB](https://www.thesportsdb.com) (fixture, no signup), [This Is Anfield](https://www.thisisanfield.com)'s RSS (news), [physioroom.com](https://www.physioroom.com) (injuries — scraped, the one fragile source here) |
+| **Liverpool** | Next fixture (or the next 5, with a free key), current injuries and recent news | [TheSportsDB](https://www.thesportsdb.com) (next fixture, no signup), [football-data.org](https://www.football-data.org) (next 5 fixtures — optional `FOOTBALL_DATA_TOKEN`), [This Is Anfield](https://www.thisisanfield.com)'s RSS (news), [physioroom.com](https://www.physioroom.com) (injuries — scraped, the one fragile source here) |
 
 The calendar isn't a separate tab — it's folded into Today's "Next 7 days" agenda, merged from every
 source you've configured (iCloud calendars + any `ICS_FEEDS`).

@@ -28,6 +28,8 @@ lib/
   garmin.js          Garmin Connect → today's steps/sleep/HR/activities
   calendar.js         iCloud CalDAV + ICS_FEEDS → merged, sorted event list
   cards.js             optcgapi.com → local card/leader cache
+  cvImport.js          PDF/DOCX/text → CV text (and styled HTML for .docx)
+  football.js          Liverpool fixtures, news (RSS) and injuries (scraped)
 public/
   index.html           the only HTML file; everything else renders into <main>
   app.js               the whole frontend: routing, rendering, every action handler

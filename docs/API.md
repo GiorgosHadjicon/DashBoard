@@ -157,6 +157,7 @@ fetch (bad/missing credentials, the upstream service down) returns `502 { "error
 | `GET /api/garmin` | `lib/garmin.js` | `{ steps, sleepHours, restingHr, weekAvgRestingHr, activities: [{ name, type, start, km, min }] }` — any field can be `null` if that metric hasn't synced. Also auto-refreshed hourly in the background (`server.js`), independent of anyone requesting it |
 | `GET /api/calendar` | `lib/calendar.js` | `[{ title, cal, start, end, allDay, where, kind }, …]`, sorted by `start`. `cal` is the source calendar's name; `kind` (Lecture/Tutorial/Lab/Online) is only set for `ICS_FEEDS` events |
 | `GET /api/lfc-fixture` | `lib/football.js`, via TheSportsDB's public no-signup test key | `{ opponent, home, competition, venue, kickoff }` (`kickoff` ISO, UTC) or `null` if none is scheduled |
+| `GET /api/lfc-fixtures` | `lib/football.js`, via football-data.org (needs `FOOTBALL_DATA_TOKEN`; without it: `502`) | `[{ opponent, home, competition, venue, kickoff }, …]` — the next 5 scheduled matches, same fields as `lfc-fixture` |
 | `GET /api/lfc-news` | `lib/football.js`, via This Is Anfield's RSS feed | `[{ title, link, pubDate }, …]` |
 | `GET /api/lfc-injuries` | `lib/football.js`, scraped from physioroom.com's player injury list (no API exists for this) | `[{ player, injury }, …]` — the one fragile piece: breaks silently (empty array) if that page's layout changes |
 
