@@ -100,6 +100,20 @@ else, like an assignment deadline title, is left untouched rather than guessed a
 `lib/calendar.js` (`tidyTitle`, `tidyWhere`, `tidyKind`) if a different feed's format needs different
 handling.
 
+## Liverpool FC fixtures — `FOOTBALL_DATA_TOKEN`
+
+```
+FOOTBALL_DATA_TOKEN=your-free-api-key
+```
+
+Optional. Without it, the Liverpool tab still shows the single next fixture (via TheSportsDB, no
+signup needed) — this key upgrades that to a real list of the next several. News and injuries are
+unaffected either way; only the fixtures list uses this.
+
+1. Register for a free account at [football-data.org](https://www.football-data.org/client/register)
+   (free tier: 10 requests/minute, far more than this app's 10-minute cache needs).
+2. Copy the API key it gives you into `.env` as above.
+
 ## Other devices (Tailscale)
 
 By default the server only answers on `127.0.0.1` — reachable from this Mac, nothing else, which is

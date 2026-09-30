@@ -6,7 +6,7 @@ const { garminToday } = await import('./lib/garmin.js');
 const { upcomingEvents } = await import('./lib/calendar.js');
 const { initCardsSchema, syncCards, searchCards, cardsMeta } = await import('./lib/cards.js');
 const { extractText, docxToStyledHtml } = await import('./lib/cvImport.js');
-const { nextFixture, news: lfcNews, injuries: lfcInjuries } = await import('./lib/football.js');
+const { nextFixture, nextFixtures, news: lfcNews, injuries: lfcInjuries } = await import('./lib/football.js');
 
 mkdirSync('data', { recursive: true });
 const db = new DatabaseSync('data/dashboard.db');
@@ -87,6 +87,7 @@ const live = (name, fn) => app.get(`/api/${name}`, async (req, res) => {
 live('garmin', garminToday);
 live('calendar', upcomingEvents);
 live('lfc-fixture', nextFixture);
+live('lfc-fixtures', () => nextFixtures(5));
 live('lfc-news', lfcNews);
 live('lfc-injuries', lfcInjuries);
 

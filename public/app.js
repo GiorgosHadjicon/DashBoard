@@ -148,8 +148,10 @@ views.today = async () => {
   const core = road.filter((i) => !i.phase.includes('coming soon')); // Phase 3 is pick-one, so it would inflate the total
   const rDone = core.reduce((n, i) => n + i.done, 0), rAll = core.reduce((n, i) => n + i.days, 0);
   const wins = matches.filter((m) => m.result === 'W').length;
-  const mu = matchups(matches).filter((r) => r.w + r.l >= 2).sort((a, b) => pct(b.w, b.l) - pct(a.w, a.l));
-  const best = mu[0], worst = mu.at(-1);
+  // No games-played floor here on purpose: a 1-game 0% loss is exactly your toughest matchup so far,
+  // same as a filtered-out one would just silently hide it and leave a same-opponent best===worst.
+  const mu = matchups(matches).sort((a, b) => pct(b.w, b.l) - pct(a.w, a.l));
+  const best = mu[0], worst = mu.length > 1 ? mu.at(-1) : null;
   const cur = road.find((i) => i.done < i.days);
   const lifts = plan.filter((w) => w.day === day);
   const eaten = MEALS.map((m) => [m, meals.find((x) => x.day === day && x.meal === m)?.text]).filter(([, x]) => x);
@@ -186,7 +188,7 @@ views.today = async () => {
       ${gar instanceof Error ? '' : `<h3>Body</h3><p>${gar.sleepHours ?? '—'}h sleep <span class="muted">· resting heart rate ${gar.restingHr ?? '—'}</span></p>`}
       <h3>Next up</h3>
       ${cur ? `<p><b>${esc(cur.title)}</b> <span class="muted">${cur.done}/${cur.days}</span></p>` : '<p class="muted">Roadmap complete.</p>'}
-      ${best ? `<h3>One Piece</h3><p><span class="good">Best</span> vs ${esc(best.opp)} <span class="muted">${pct(best.w, best.l)}%</span><br><span class="bad">Toughest</span> vs ${esc(worst.opp)} <span class="muted">${pct(worst.w, worst.l)}%</span></p>` : ''}
+      ${best ? `<h3>One Piece</h3><p><span class="good">Best</span> vs ${esc(best.opp)} <span class="muted">${pct(best.w, best.l)}%</span>${worst ? `<br><span class="bad">Toughest</span> vs ${esc(worst.opp)} <span class="muted">${pct(worst.w, worst.l)}%</span>` : ''}</p>` : ''}
     </details>
   </div>`;
 };
@@ -378,24 +380,29 @@ views.roadmap = async () => {
 // Fixture (TheSportsDB), news (This Is Anfield's RSS) and injuries (scraped from physioroom.com —
 // see lib/football.js for why that one's the fragile piece) are three separate live() endpoints,
 // so one going down doesn't take the other two with it.
+const fixtureRow = (f) => {
+  const d = new Date(f.kickoff);
+  const vs = f.home ? `Liverpool <span class="muted">vs</span> ${esc(f.opponent)}` : `${esc(f.opponent)} <span class="muted">vs</span> Liverpool`;
+  return `<li><div class="grow"><b>${vs}</b><br><span class="muted">${esc(f.competition)}${f.venue ? ` · ${esc(f.venue)}` : ''}</span></div>
+    <span class="pill">${d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></li>`;
+};
+
 views.liverpool = async () => {
-  const [fixture, inj, articles] = await Promise.all([
-    live('lfc-fixture').catch((e) => e), live('lfc-injuries').catch((e) => e), live('lfc-news').catch((e) => e),
+  const [fixture, fixtures, inj, articles] = await Promise.all([
+    live('lfc-fixture').catch((e) => e), live('lfc-fixtures').catch((e) => e),
+    live('lfc-injuries').catch((e) => e), live('lfc-news').catch((e) => e),
   ]);
-  const fixtureBody = fixture instanceof Error ? notConnected(fixture)
-    : !fixture ? empty('No upcoming fixture found.')
-    : (() => {
-        const d = new Date(fixture.kickoff);
-        const vs = fixture.home ? `Liverpool <span class="muted">vs</span> ${esc(fixture.opponent)}` : `${esc(fixture.opponent)} <span class="muted">vs</span> Liverpool`;
-        return `<p><b>${vs}</b><br><span class="muted">${esc(fixture.competition)} · ${d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${esc(fixture.venue)}</span></p>`;
-      })();
+  // FOOTBALL_DATA_TOKEN unset (or the request failing) just means falling back to the one fixture
+  // the key-free source (TheSportsDB) can give — not an error state worth showing as "Not connected".
+  const upcoming = Array.isArray(fixtures) && fixtures.length ? fixtures : (fixture instanceof Error || !fixture ? [] : [fixture]);
+  const fixtureBody = upcoming.length ? `<ul class="list">${upcoming.map(fixtureRow).join('')}</ul>` : empty('No upcoming fixture found.');
   const injBody = inj instanceof Error ? notConnected(inj)
     : !inj.length ? empty('No reported injuries.')
     : `<ul class="list">${inj.map((i) => `<li><div class="grow">${esc(i.player)}</div><span class="pill">${esc(i.injury)}</span></li>`).join('')}</ul>`;
   const newsBody = articles instanceof Error ? notConnected(articles)
     : `<ul class="list">${articles.map((a) => `<li><a class="grow" href="${esc(a.link)}" target="_blank" rel="noopener">${esc(a.title)}</a><span class="muted">${new Date(a.pubDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span></li>`).join('') || empty('No news right now.')}</ul>`;
   return `<h2>Liverpool FC</h2>
-  <h3>Next game</h3>${fixtureBody}
+  <h3>${upcoming.length > 1 ? 'Next games' : 'Next game'}</h3>${fixtureBody}
   <h3>Injuries</h3>${injBody}
   <h3>News</h3>${newsBody}`;
 };
